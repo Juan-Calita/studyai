@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyAI — Transforme aulas em conhecimento</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg: #0c0f1a; --card: rgba(255,255,255,0.03); --border: rgba(255,255,255,0.08); --green: #6ee7b7; --blue: #3b82f6; --text: #e2e8f0; --muted: #94a3b8; --dim: #64748b; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Header */
+header { position: sticky; top: 0; z-index: 100; background: rgba(12,15,26,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+.header-inner { max-width: 1100px; margin: 0 auto; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, var(--green), var(--blue)); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--bg); font-weight: 800; }
+.logo-title { font-size: 17px; font-weight: 700; color: #fff; }
+.logo-sub { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; }
+nav { display: none; gap: 4px; }
+nav.show { display: flex; }
+nav button { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 500; font-family: inherit; }
+nav button.active { background: rgba(110,231,183,0.1); border-color: rgba(110,231,183,0.3); color: var(--green); }
+
+/* Main */
+main { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+.hidden { display: none !important; }
+
+/* Upload */
+.upload-section { max-width: 600px; margin: 60px auto; text-align: center; }
+.upload-area { position: relative; border: 2px dashed rgba(110,231,183,0.2); border-radius: 24px; background: var(--card); padding: 50px 30px; }
+.upload-area:hover { border-color: rgba(110,231,183,0.4); }
+.upload-icon { font-size: 48px; margin-bottom: 12px; }
+.upload-title { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.upload-sub { font-size: 13px; color: var(--dim); margin-bottom: 24px; }
+.upload-btn { background: linear-gradient(135deg, var(--green), var(--blue)); color: var(--bg); border: none; padding: 13px 28px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 4px 20px rgba(110,231,183,0.25); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 24px; }
+.tag { background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 5px 12px; border-radius: 16px; font-size: 11px; color: var(--muted); }
+
+/* Processing */
+.processing { max-width: 600px; margin: 60px auto; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 36px; display: flex; align-items: center; gap: 28px; flex-wrap: wrap; justify-content: center; }
+.ring-wrap { flex-shrink: 0; }
+.proc-info { flex: 1; min-width: 220px; }
+.proc-file { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.proc-msg { font-size: 17px; font-weight: 600; color: #fff; margin-bottom: 14px; }
+.proc-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.proc-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width 0.5s; }
+.proc-hint { font-size: 11px; color: #475569; margin-top: 8px; }
+
+/* Badge */
+.badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--green); background: rgba(110,231,183,0.1); padding: 3px 10px; border-radius: 5px; margin-bottom: 10px; }
+.page-title { font-size: 24px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+.page-sub { font-size: 13px; color: var(--dim); margin-top: 4px; }
+
+/* Resumo */
+.resumo { background: linear-gradient(135deg, rgba(110,231,183,0.06), rgba(59,130,246,0.06)); border: 1px solid rgba(110,231,183,0.12); border-radius: 14px; padding: 20px; margin: 20px 0; }
+.resumo-label { font-size: 12px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+.resumo p { font-size: 14px; line-height: 1.7; color: #cbd5e1; }
+
+/* Transcrição */
+.transcricao { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; }
+.transcricao h3 { font-size: 16px; font-weight: 700; color: var(--green); margin: 20px 0 8px; }
+.transcricao h3:first-child { margin-top: 0; }
+.transcricao p { font-size: 14px; line-height: 1.8; color: var(--muted); margin-bottom: 12px; }
+
+/* Downloads */
+.downloads { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.dl-btn { display: inline-block; text-decoration: none; background: rgba(110,231,183,0.1); border: 1px solid rgba(110,231,183,0.25); color: var(--green); padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.dl-btn.alt { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); color: #93c5fd; }
+
+/* Flashcards */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 20px; }
+.fc { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; cursor: pointer; min-height: 160px; display: flex; flex-direction: column; justify-content: center; position: relative; transition: all 0.3s; }
+.fc:hover { border-color: rgba(110,231,183,0.2); }
+.fc.flipped { background: rgba(110,231,183,0.05); border-color: rgba(110,231,183,0.2); }
+.fc-num { position: absolute; top: 12px; right: 14px; font-size: 11px; color: #334155; font-weight: 700; font-family: monospace; }
+.fc-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: #475569; margin-bottom: 8px; }
+.fc-text { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.5; }
+.fc-hint { font-size: 10px; color: #334155; margin-top: 12px; }
+.fc.flipped .fc-label { color: var(--green); }
+.fc.flipped .fc-text { color: #a7f3d0; font-weight: 400; font-size: 14px; }
+.fc.flipped .fc-hint { color: #2d6a5a; }
+
+/* Questões */
+.q-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+.q-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.q-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #93c5fd; background: rgba(59,130,246,0.12); padding: 3px 8px; border-radius: 5px; }
+.q-sim { font-size: 11px; color: var(--dim); display: flex; align-items: center; gap: 5px; }
+.sim-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.q-enunciado { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
+.alt-btn { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 13px; color: #cbd5e1; font-family: inherit; text-align: left; margin-bottom: 6px; position: relative; transition: all 0.2s; }
+.alt-btn:hover { border-color: rgba(255,255,255,0.15); }
+.alt-btn.selected { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.4); }
+.alt-btn.correct { background: rgba(110,231,183,0.12); border-color: rgba(110,231,183,0.4); color: var(--green); }
+.alt-btn.wrong { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
+.alt-letra { width: 26px; height: 26px; border-radius: 6px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.confirm-btn { margin-top: 10px; background: linear-gradient(135deg, var(--green), var(--blue)); color: var(--bg); border: none; padding: 8px 20px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.gabarito-msg { margin-top: 10px; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 7px; background: var(--card); }
+.empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+.mark { position: absolute; right: 14px; font-weight: 700; font-size: 16px; }
+
+footer { text-align: center; padding: 20px; font-size: 11px; color: #334155; border-top: 1px solid var(--border); }
+.error { color: #ef4444; margin: 10px 0; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">✦</div>
+      <div><div class="logo-title">StudyAI</div><div class="logo-sub">Transforme aulas em conhecimento</div></div>
+    </div>
+    <nav id="nav">
+      <button onclick="showTab('transcricao')" data-tab="transcricao">📝 Transcrição</button>
+      <button onclick="showTab('material')" data-tab="material">📚 Flashcards</button>
+      <button onclick="showTab('questoes')" data-tab="questoes">🎯 Questões</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- UPLOAD -->
+  <div id="tab-upload" class="upload-section">
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">🎙️</div>
+      <div class="upload-title">Envie o áudio da sua aula</div>
+      <div class="upload-sub">MP3, WAV ou M4A • Até 2 horas</div>
+      <button class="upload-btn">↑ Selecionar arquivo</button>
+      <input type="file" id="file-input" accept="audio/*" onchange="handleUpload(event)" style="display:none">
+      <div class="tags">
+        <div class="tag">📝 Transcrição</div>
+        <div class="tag">🃏 Flashcards</div>
+        <div class="tag">📄 PDF</div>
+        <div class="tag">🎯 Questões</div>
+        <div class="tag">📦 Anki</div>
+      </div>
+    </div>
+    <div id="error" class="error hidden"></div>
+  </div>
+
+  <!-- PROCESSING -->
+  <div id="tab-processing" class="processing hidden">
+    <div class="ring-wrap">
+      <svg id="ring" width="100" height="100" style="transform:rotate(-90deg)">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="5"/>
+        <circle id="ring-fill" cx="50" cy="50" r="44" fill="none" stroke="#6ee7b7" stroke-width="5" stroke-dasharray="276.5" stroke-dashoffset="276.5" stroke-linecap="round" style="transition:stroke-dashoffset 0.5s"/>
+      </svg>
+      <div style="text-align:center;margin-top:-65px;position:relative;z-index:1">
+        <span id="ring-pct" style="font-size:20px;font-weight:700;color:#fff">0%</span>
+      </div>
+    </div>
+    <div class="proc-info">
+      <div class="proc-file" id="proc-file"></div>
+      <div class="proc-msg" id="proc-msg">Enviando áudio...</div>
+      <div class="proc-bar"><div class="proc-fill" id="proc-fill" style="width:0%"></div></div>
+      <div class="proc-hint">A primeira aula demora mais (carregando modelos). As próximas são mais rápidas.</div>
+    </div>
+  </div>
+
+  <!-- TRANSCRIÇÃO -->
+  <div id="tab-transcricao" class="hidden">
+    <div class="badge">TRANSCRIÇÃO COMPLETA</div>
+    <h2 class="page-title" id="aula-titulo"></h2>
+    <div class="resumo"><div class="resumo-label">✦ Resumo da aula</div><p id="aula-resumo"></p></div>
+    <div class="transcricao" id="aula-transcricao"></div>
+    <div class="downloads" id="downloads"></div>
+  </div>
+
+  <!-- FLASHCARDS -->
+  <div id="tab-material" class="hidden">
+    <div class="badge">MATERIAL DE ESTUDO</div>
+    <h2 class="page-title">Flashcards</h2>
+    <p class="page-sub">Clique no cartão para revelar a resposta</p>
+    <div class="cards-grid" id="cards-grid"></div>
+  </div>
+
+  <!-- QUESTÕES -->
+  <div id="tab-questoes" class="hidden">
+    <div class="badge">BANCO DE QUESTÕES</div>
+    <h2 class="page-title">Questões mais similares à aula</h2>
+    <p class="page-sub">Selecionadas por IA com base no conteúdo</p>
+    <div id="questoes-list" style="margin-top:20px"></div>
+  </div>
+</main>
+
+<footer>StudyAI — Transformando aulas em conhecimento</footer>
+
+<script>
+const API = window.location.origin;
+let aulaData = null;
+let questoesData = [];
+let selected = {};
+let revealed = {};
+
+async function handleUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  document.getElementById('tab-upload').classList.add('hidden');
+  document.getElementById('tab-processing').classList.remove('hidden');
+  document.getElementById('proc-file').textContent = '📎 ' + file.name;
+  setProgress(5, 'Enviando áudio...');
+
+  try {
+    const form = new FormData();
+    form.append('titulo', file.name.replace(/\.[^.]+$/, ''));
+    form.append('audio', file);
+
+    const res = await fetch(API + '/api/aulas', { method: 'POST', body: form });
+    if (!res.ok) throw new Error('Erro no upload');
+    const data = await res.json();
+    setProgress(10, 'Processando com IA...');
+    pollStatus(data.aula_id);
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+function setProgress(pct, msg) {
+  const circ = 276.5;
+  document.getElementById('ring-fill').style.strokeDashoffset = circ - (pct / 100) * circ;
+  document.getElementById('ring-pct').textContent = pct + '%';
+  document.getElementById('proc-fill').style.width = pct + '%';
+  if (msg) document.getElementById('proc-msg').textContent = msg;
+}
+
+function pollStatus(id) {
+  const msgs = ['Transcrevendo áudio...','Estruturando conteúdo...','Gerando flashcards...','Buscando questões...','Gerando PDF e Anki...'];
+  let tick = 0;
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(API + '/api/aulas/' + id);
+      const data = await res.json();
+      tick++;
+      setProgress(Math.min(10 + tick * 5, 90), msgs[Math.min(Math.floor(tick/3), msgs.length-1)]);
+
+      if (data.status === 'pronto') {
+        clearInterval(interval);
+        setProgress(100, 'Concluído!');
+        aulaData = data;
+        setTimeout(async () => {
+          try {
+            const qr = await fetch(API + '/api/aulas/' + id + '/questoes-similares?k=5');
+            if (qr.ok) questoesData = await qr.json();
+          } catch(_){}
+          renderApp();
+        }, 800);
+      } else if (data.status === 'erro') {
+        clearInterval(interval);
+        showError('Erro: ' + (data.erro || 'desconhecido'));
+      }
+    } catch(_){}
+  }, 3000);
+}
+
+function showError(msg) {
+  document.getElementById('tab-processing').classList.add('hidden');
+  document.getElementById('tab-upload').classList.remove('hidden');
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function renderApp() {
+  document.getElementById('tab-processing').classList.add('hidden');
+  document.getElementById('nav').classList.add('show');
+  renderTranscricao();
+  renderFlashcards();
+  renderQuestoes();
+  showTab('transcricao');
+}
+
+function showTab(name) {
+  ['upload','processing','transcricao','material','questoes'].forEach(t =>
+    document.getElementById('tab-' + t).classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('nav button').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+}
+
+function renderTranscricao() {
+  document.getElementById('aula-titulo').textContent = aulaData.titulo;
+  document.getElementById('aula-resumo').textContent = aulaData.resumo;
+  const box = document.getElementById('aula-transcricao');
+  box.innerHTML = '';
+  (aulaData.transcricao || '').split('\n\n').forEach(b => {
+    b = b.trim(); if (!b) return;
+    if (b.startsWith('# ')) { const h = document.createElement('h3'); h.textContent = b.slice(2); box.appendChild(h); }
+    else if (b.startsWith('## ')) { const h = document.createElement('h3'); h.textContent = b.slice(3); box.appendChild(h); }
+    else { const p = document.createElement('p'); p.textContent = b; box.appendChild(p); }
+  });
+  const dl = document.getElementById('downloads');
+  dl.innerHTML = '';
+  if (aulaData.pdf_url) dl.innerHTML += '<a href="'+API+aulaData.pdf_url+'" target="_blank" class="dl-btn">📄 Baixar PDF</a>';
+  if (aulaData.anki_url) dl.innerHTML += '<a href="'+API+aulaData.anki_url+'" target="_blank" class="dl-btn alt">📦 Baixar Anki</a>';
+}
+
+function renderFlashcards() {
+  const grid = document.getElementById('cards-grid');
+  grid.innerHTML = '';
+  (aulaData.flashcards || []).forEach((fc, i) => {
+    const div = document.createElement('div');
+    div.className = 'fc';
+    div.innerHTML = '<div class="fc-num">'+(i+1).toString().padStart(2,'0')+'</div>' +
+      '<div class="fc-label">PERGUNTA</div><div class="fc-text">'+esc(fc.pergunta)+'</div><div class="fc-hint">toque para ver →</div>';
+    div.onclick = () => {
+      div.classList.toggle('flipped');
+      if (div.classList.contains('flipped')) {
+        div.innerHTML = '<div class="fc-num">'+(i+1).toString().padStart(2,'0')+'</div>' +
+          '<div class="fc-label">RESPOSTA</div><div class="fc-text">'+esc(fc.resposta)+'</div><div class="fc-hint">toque para voltar →</div>';
+      } else {
+        div.innerHTML = '<div class="fc-num">'+(i+1).toString().padStart(2,'0')+'</div>' +
+          '<div class="fc-label">PERGUNTA</div><div class="fc-text">'+esc(fc.pergunta)+'</div><div class="fc-hint">toque para ver →</div>';
+      }
+    };
+    grid.appendChild(div);
+  });
+}
+
+function renderQuestoes() {
+  const list = document.getElementById('questoes-list');
+  if (!questoesData.length) { list.innerHTML = '<div class="empty"><div style="font-size:40px;margin-bottom:10px">📭</div><p>Nenhuma questão no banco ainda.</p></div>'; return; }
+  list.innerHTML = '';
+  questoesData.forEach(q => {
+    const simPct = Math.round(q.similaridade * 100);
+    const dotColor = q.similaridade > 0.7 ? '#6ee7b7' : q.similaridade > 0.5 ? '#fbbf24' : '#fb923c';
+    let html = '<div class="q-card" id="q-'+q.id+'"><div class="q-top"><span class="q-badge">'+(q.tema||'Geral')+'</span>' +
+      '<span class="q-sim">'+simPct+'% similar <span class="sim-dot" style="background:'+dotColor+'"></span></span></div>' +
+      '<p class="q-enunciado">'+esc(q.enunciado)+'</p><div class="alts">';
+    Object.entries(q.alternativas).forEach(([l, t]) => {
+      html += '<button class="alt-btn" data-qid="'+q.id+'" data-letra="'+l+'" onclick="selectAlt('+q.id+',\''+l+'\')">' +
+        '<span class="alt-letra">'+l+'</span><span>'+esc(t)+'</span></button>';
+    });
+    html += '</div><div id="actions-'+q.id+'"></div></div>';
+    list.innerHTML += html;
+  });
+}
+
+function selectAlt(qid, letra) {
+  if (revealed[qid]) return;
+  selected[qid] = letra;
+  document.querySelectorAll('[data-qid="'+qid+'"]').forEach(b => {
+    b.classList.toggle('selected', b.dataset.letra === letra);
+  });
+  document.getElementById('actions-'+qid).innerHTML =
+    '<button class="confirm-btn" onclick="revealAlt('+qid+')">Confirmar resposta</button>';
+}
+
+function revealAlt(qid) {
+  revealed[qid] = true;
+  const q = questoesData.find(x => x.id === qid);
+  document.querySelectorAll('[data-qid="'+qid+'"]').forEach(b => {
+    b.classList.remove('selected');
+    if (b.dataset.letra === q.gabarito) { b.classList.add('correct'); b.innerHTML += '<span class="mark" style="color:#6ee7b7">✓</span>'; }
+    else if (b.dataset.letra === selected[qid]) { b.classList.add('wrong'); b.innerHTML += '<span class="mark" style="color:#ef4444">✗</span>'; }
+  });
+  const msg = selected[qid] === q.gabarito ? '🎉 Correto!' : '❌ Resposta: '+q.gabarito+') '+q.alternativas[q.gabarito];
+  document.getElementById('actions-'+qid).innerHTML = '<div class="gabarito-msg">'+msg+'</div>';
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
