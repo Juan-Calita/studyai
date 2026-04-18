@@ -18,6 +18,7 @@ from app.services import embeddings
 app = FastAPI(title="StudyAI")
 
 app.add_middleware(
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
