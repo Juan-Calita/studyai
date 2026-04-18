@@ -75,7 +75,33 @@ main { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
 footer { text-align: center; padding: 20px; font-size: 11px; color: #334155; border-top: 1px solid var(--border); }
 .error { color: #ef4444; margin: 10px 0; font-size: 13px; text-align: center; }
 
-/* RESPONSIVO MOBILE */
+/* POP-UP NAMORO */
+.popup-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn 0.3s; }
+.popup-box { background: linear-gradient(135deg, #1a1f2e, #0c0f1a); border: 2px solid rgba(236,72,153,0.3); border-radius: 24px; padding: 40px 32px; text-align: center; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(236,72,153,0.3); animation: popIn 0.4s; }
+.popup-emoji { font-size: 60px; margin-bottom: 12px; animation: bounce 1s infinite; }
+.popup-title { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.popup-sub { font-size: 14px; color: #94a3b8; margin-bottom: 24px; }
+.popup-buttons { display: flex; gap: 14px; justify-content: center; position: relative; min-height: 52px; align-items: center; }
+.popup-btn { padding: 14px 36px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; border: none; font-family: inherit; transition: transform 0.2s, box-shadow 0.2s; }
+.popup-btn-sim { background: linear-gradient(135deg, #ec4899, #f43f5e); color: #fff; box-shadow: 0 4px 20px rgba(236,72,153,0.4); }
+.popup-btn-sim:hover { transform: scale(1.1); }
+.popup-btn-nao { background: rgba(255,255,255,0.08); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); transition: left 0.3s ease, top 0.3s ease; }
+
+.victory { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #ec4899, #a855f7, #3b82f6); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; animation: fadeIn 0.5s; overflow: hidden; }
+.victory-content { text-align: center; padding: 20px; z-index: 2; position: relative; }
+.victory-photo { max-width: 90vw; max-height: 50vh; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 4px solid #fff; animation: popIn 0.6s; }
+.victory-title { font-size: 38px; font-weight: 800; color: #fff; margin-top: 24px; text-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: popIn 0.8s; }
+.victory-sub { font-size: 18px; color: rgba(255,255,255,0.9); margin-top: 8px; animation: popIn 1s; }
+.emoji-rain { position: fixed; top: -50px; font-size: 40px; animation: fall linear infinite; z-index: 1; pointer-events: none; }
+.victory-close { margin-top: 24px; background: rgba(255,255,255,0.2); border: 2px solid #fff; color: #fff; padding: 12px 28px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; backdrop-filter: blur(10px); }
+.victory-close:hover { background: rgba(255,255,255,0.3); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
+
+/* MOBILE */
 @media (max-width: 640px) {
   main { padding: 20px 14px 60px; }
   .header-inner { padding: 10px 14px; gap: 8px; }
@@ -98,60 +124,24 @@ footer { text-align: center; padding: 20px; font-size: 11px; color: #334155; bor
   .proc-msg { font-size: 15px; }
   .proc-file { font-size: 12px; word-break: break-all; }
   .page-title { font-size: 20px; }
-  .page-sub { font-size: 12px; }
-  .resumo { padding: 16px; border-radius: 12px; }
+  .resumo { padding: 16px; }
   .resumo p { font-size: 13px; }
-  .transcricao { padding: 18px 16px; border-radius: 12px; }
-  .transcricao h3 { font-size: 15px; }
-  .transcricao p { font-size: 13px; line-height: 1.7; }
+  .transcricao { padding: 18px 16px; }
+  .transcricao p { font-size: 13px; }
   .downloads { flex-direction: column; }
-  .dl-btn { text-align: center; padding: 12px 16px; font-size: 13px; }
-  .cards-grid { grid-template-columns: 1fr; gap: 12px; }
-  .fc { padding: 18px; min-height: 140px; border-radius: 12px; }
+  .dl-btn { text-align: center; padding: 12px 16px; }
+  .cards-grid { grid-template-columns: 1fr; }
+  .fc { padding: 18px; min-height: 140px; }
   .fc-text { font-size: 14px; }
-  .fc.flipped .fc-text { font-size: 13px; }
-  input, button, textarea, select { font-size: 16px; }
-}
-@media (max-width: 900px) and (min-width: 641px) {
-  main { padding: 30px 20px 60px; }
-  .cards-grid { grid-template-columns: repeat(2, 1fr); }
-}
-</style>
-  /* ===== POP-UP NAMORO ===== */
-.popup-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn 0.3s; }
-.popup-box { background: linear-gradient(135deg, #1a1f2e, #0c0f1a); border: 2px solid rgba(236,72,153,0.3); border-radius: 24px; padding: 40px 32px; text-align: center; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(236,72,153,0.3); animation: popIn 0.4s; }
-.popup-emoji { font-size: 60px; margin-bottom: 12px; animation: bounce 1s infinite; }
-.popup-title { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 8px; }
-.popup-sub { font-size: 14px; color: #94a3b8; margin-bottom: 24px; }
-.popup-buttons { display: flex; gap: 14px; justify-content: center; position: relative; height: 52px; }
-.popup-btn { padding: 14px 36px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; border: none; font-family: inherit; transition: transform 0.2s, box-shadow 0.2s; }
-.popup-btn-sim { background: linear-gradient(135deg, #ec4899, #f43f5e); color: #fff; box-shadow: 0 4px 20px rgba(236,72,153,0.4); }
-.popup-btn-sim:hover { transform: scale(1.1); }
-.popup-btn-nao { background: rgba(255,255,255,0.08); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); position: absolute; transition: left 0.3s ease, top 0.3s ease; left: calc(50% + 10px); top: 0; }
-
-/* Tela de vitória */
-.victory { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #ec4899, #a855f7, #3b82f6); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; animation: fadeIn 0.5s; overflow: hidden; }
-.victory-content { text-align: center; padding: 20px; z-index: 2; position: relative; }
-.victory-photo { max-width: 90vw; max-height: 50vh; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 4px solid #fff; animation: popIn 0.6s; }
-.victory-title { font-size: 38px; font-weight: 800; color: #fff; margin-top: 24px; text-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: popIn 0.8s; }
-.victory-sub { font-size: 18px; color: rgba(255,255,255,0.9); margin-top: 8px; animation: popIn 1s; }
-.emoji-rain { position: fixed; top: -50px; font-size: 40px; animation: fall linear infinite; z-index: 1; pointer-events: none; }
-.victory-close { margin-top: 24px; background: rgba(255,255,255,0.2); border: 2px solid #fff; color: #fff; padding: 12px 28px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; backdrop-filter: blur(10px); }
-.victory-close:hover { background: rgba(255,255,255,0.3); }
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-@keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
-
-@media (max-width: 640px) {
   .popup-box { padding: 30px 20px; }
   .popup-title { font-size: 22px; }
   .popup-btn { padding: 12px 24px; font-size: 14px; }
   .victory-title { font-size: 28px; }
   .victory-sub { font-size: 15px; }
   .emoji-rain { font-size: 30px; }
+  input, button, textarea, select { font-size: 16px; }
 }
+</style>
 </head>
 <body>
 
@@ -200,7 +190,7 @@ footer { text-align: center; padding: 20px; font-size: 11px; color: #334155; bor
       <div class="proc-file" id="proc-file"></div>
       <div class="proc-msg" id="proc-msg">Enviando áudio...</div>
       <div class="proc-bar"><div class="proc-fill" id="proc-fill" style="width:0%"></div></div>
-      <div class="proc-hint">Você pode ler a transcrição assim que ficar pronta, enquanto o resto é gerado.</div>
+      <div class="proc-hint">Você pode ler a transcrição assim que ficar pronta.</div>
     </div>
   </div>
 
@@ -219,7 +209,7 @@ footer { text-align: center; padding: 20px; font-size: 11px; color: #334155; bor
     <div class="cards-grid" id="cards-grid"></div>
   </div>
 </main>
-<!-- POP-UP NAMORO -->
+
 <div id="popup-namoro" class="popup-overlay hidden">
   <div class="popup-box">
     <div class="popup-emoji">💕</div>
@@ -227,12 +217,11 @@ footer { text-align: center; padding: 20px; font-size: 11px; color: #334155; bor
     <div class="popup-sub">Resposta importante antes do download 😌</div>
     <div class="popup-buttons">
       <button class="popup-btn popup-btn-sim" onclick="aceitarNamoro()">Sim 💖</button>
-      <button id="btn-nao" class="popup-btn popup-btn-nao" onmouseover="fugirNao()" ontouchstart="fugirNao()">Não</button>
+      <button id="btn-nao" class="popup-btn popup-btn-nao" onmouseover="fugirNao()" ontouchstart="fugirNao(event)">Não</button>
     </div>
   </div>
 </div>
 
-<!-- TELA DE VITÓRIA -->
 <div id="victory" class="victory hidden">
   <div class="victory-content">
     <img src="/static/nos.jpg" alt="Nós" class="victory-photo">
@@ -241,26 +230,25 @@ footer { text-align: center; padding: 20px; font-size: 11px; color: #334155; bor
     <button class="victory-close" onclick="fecharVitoria()">Continuar ✨</button>
   </div>
 </div>
+
 <footer>StudyAI — Transformando aulas em conhecimento</footer>
 
 <script>
 const API = window.location.origin;
 let aulaData = null;
+let pendingDownloadUrl = null;
 
 async function handleUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   document.getElementById('tab-upload').classList.add('hidden');
   document.getElementById('tab-processing').classList.remove('hidden');
   document.getElementById('proc-file').textContent = '📎 ' + file.name;
   setProgress(5, 'Enviando áudio...');
-
   try {
     const form = new FormData();
     form.append('titulo', file.name.replace(/\.[^.]+$/, ''));
     form.append('audio', file);
-
     const res = await fetch(API + '/api/aulas', { method: 'POST', body: form });
     if (!res.ok) throw new Error('Erro no upload');
     const data = await res.json();
@@ -283,32 +271,27 @@ function pollStatus(id) {
   const statusMsgs = {
     'processando': { p: 15, m: 'Preparando áudio...' },
     'transcrevendo': { p: 30, m: 'Transcrevendo áudio...' },
-    'estruturando': { p: 55, m: 'Transcrição pronta! Gerando resumo, guia e flashcards...' },
-    'gerando_conteudo': { p: 70, m: 'Gerando resumo expandido, guia e flashcards...' },
+    'estruturando': { p: 55, m: 'Transcrição pronta! Gerando resumo e flashcards...' },
+    'gerando_conteudo': { p: 70, m: 'Gerando resumo expandido e flashcards...' },
     'gerando_arquivos': { p: 90, m: 'Gerando PDF e deck Anki...' }
   };
-
   let currentProgress = 10;
   let targetProgress = 15;
   let currentMsg = 'Preparando áudio...';
-
   const smoothAnimation = setInterval(() => {
     if (currentProgress < targetProgress) {
       currentProgress += 1;
       setProgress(currentProgress, currentMsg);
     }
   }, 400);
-
   const interval = setInterval(async () => {
     try {
       const res = await fetch(API + '/api/aulas/' + id);
       const data = await res.json();
-
       if (statusMsgs[data.status]) {
         targetProgress = statusMsgs[data.status].p;
         currentMsg = statusMsgs[data.status].m;
       }
-
       if (data.status === 'pronto') {
         clearInterval(interval);
         clearInterval(smoothAnimation);
@@ -362,8 +345,18 @@ function renderTranscricao() {
   });
   const dl = document.getElementById('downloads');
   dl.innerHTML = '';
-  if (aulaData.pdf_url) dl.innerHTML += '<a href="#" onclick="interceptarDownload(event, \'' + API + aulaData.pdf_url + '\')" class="dl-btn">📄 Baixar PDF</a>';
-if (aulaData.anki_url) dl.innerHTML += '<a href="#" onclick="interceptarDownload(event, \'' + API + aulaData.anki_url + '\')" class="dl-btn alt">📦 Baixar Anki</a>';
+  if (aulaData.pdf_url) {
+    const a = document.createElement('a');
+    a.href = '#'; a.className = 'dl-btn'; a.textContent = '📄 Baixar PDF';
+    a.onclick = (e) => interceptarDownload(e, API + aulaData.pdf_url);
+    dl.appendChild(a);
+  }
+  if (aulaData.anki_url) {
+    const a = document.createElement('a');
+    a.href = '#'; a.className = 'dl-btn alt'; a.textContent = '📦 Baixar Anki';
+    a.onclick = (e) => interceptarDownload(e, API + aulaData.anki_url);
+    dl.appendChild(a);
+  }
 }
 
 function renderFlashcards() {
@@ -391,8 +384,6 @@ function renderFlashcards() {
     grid.appendChild(div);
   });
 }
-  // ===== POP-UP NAMORO =====
-let pendingDownloadUrl = null;
 
 function interceptarDownload(e, url) {
   e.preventDefault();
@@ -400,12 +391,13 @@ function interceptarDownload(e, url) {
   document.getElementById('popup-namoro').classList.remove('hidden');
 }
 
-function fugirNao() {
+function fugirNao(e) {
+  if (e) e.preventDefault();
   const btn = document.getElementById('btn-nao');
   const maxX = window.innerWidth - btn.offsetWidth - 20;
   const maxY = window.innerHeight - btn.offsetHeight - 20;
-  const novoX = Math.random() * maxX;
-  const novoY = Math.random() * maxY;
+  const novoX = Math.max(10, Math.random() * maxX);
+  const novoY = Math.max(10, Math.random() * maxY);
   btn.style.position = 'fixed';
   btn.style.left = novoX + 'px';
   btn.style.top = novoY + 'px';
