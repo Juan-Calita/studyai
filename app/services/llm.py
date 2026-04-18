@@ -4,7 +4,7 @@ import google.generativeai as genai
 from app.config import settings
 
 genai.configure(api_key=settings.gemini_api_key)
-_model = genai.GenerativeModel("gemini-1.5-flash")
+_model = genai.GenerativeModel("gemini-2.0-flash")
 
 
 def _parse_json(texto: str):
