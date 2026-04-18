@@ -9,7 +9,7 @@ def transcrever(audio_path: str) -> str:
     print(f"[Transcrição] Enviando áudio para Gemini...")
     audio_file = genai.upload_file(path=audio_path)
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
+   model = genai.GenerativeModel("gemini-2.0-flash")
     response = model.generate_content([
         "Transcreva este áudio completamente em português. "
         "Retorne APENAS o texto transcrito, sem comentários, sem timestamps, sem formatação extra.",
