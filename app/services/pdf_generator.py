@@ -8,15 +8,45 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, PageBreak
 from app.config import settings
 
 
+def _normalizar_texto(valor):
+    """Aceita string, lista ou dict e retorna sempre uma string."""
+    if valor is None:
+        return ""
+    if isinstance(valor, str):
+        return valor
+    if isinstance(valor, list):
+        # Lista de strings ou dicts
+        partes = []
+        for item in valor:
+            if isinstance(item, str):
+                partes.append(item)
+            elif isinstance(item, dict):
+                # Pega o primeiro valor string do dict
+                for v in item.values():
+                    if isinstance(v, str):
+                        partes.append(v)
+                        break
+            else:
+                partes.append(str(item))
+        return "\n\n".join(partes)
+    if isinstance(valor, dict):
+        partes = []
+        for k, v in valor.items():
+            partes.append(f"## {k}\n\n{_normalizar_texto(v)}")
+        return "\n\n".join(partes)
+    return str(valor)
+
+
 def _analisar_frequencia(transcricao_bruta: str):
     palavras = re.findall(r'\w+', transcricao_bruta.lower())
-    stop_words = {'a', 'o', 'e', 'do', 'da', 'em', 'um', 'uma', 'que', 'com', 'no', 'na', 'para', 'os', 'as', 'de', 'se', 'por', 'mais', 'sua', 'seu', 'uma', 'como', 'mas', 'foi', 'ser', 'são', 'tem', 'ter', 'ele', 'ela', 'isso', 'esse', 'essa', 'esta', 'este'}
+    stop_words = {'a', 'o', 'e', 'do', 'da', 'em', 'um', 'uma', 'que', 'com', 'no', 'na', 'para', 'os', 'as', 'de', 'se', 'por', 'mais', 'sua', 'seu', 'como', 'mas', 'foi', 'ser', 'são', 'tem', 'ter', 'ele', 'ela', 'isso', 'esse', 'essa', 'esta', 'este'}
     contagem = collections.Counter(p for p in palavras if p not in stop_words and len(p) > 3)
     top = [item[0] for item in contagem.most_common(20)]
     return set(top[:5]), set(top[5:15])
 
 
 def escape(t):
+    t = str(t) if t else ""
     for char in ['*', '#', '@', '$', '_']:
         t = t.replace(char, '')
     t = t.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -42,6 +72,7 @@ def gerar_pdf(aula_id, titulo, transcricao_bruta, estruturado, flashcards):
     styles.add(ParagraphStyle(name='FCR', fontSize=12, leading=20, spaceAfter=16,
                               leftIndent=12, fontName='Times-Roman'))
 
+    transcricao_bruta = _normalizar_texto(transcricao_bruta)
     muito_rep, rel_rep = _analisar_frequencia(transcricao_bruta)
 
     def get_color(texto):
@@ -53,6 +84,7 @@ def gerar_pdf(aula_id, titulo, transcricao_bruta, estruturado, flashcards):
         return black
 
     def add_content(content, story, force_body=False):
+        content = _normalizar_texto(content)
         if not content:
             return
         for block in content.split('\n\n'):
