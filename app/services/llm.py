@@ -29,39 +29,31 @@ def _call_with_retry(prompt, retries=1):
         raise
 
 
-def estruturar_transcricao(transcricao_bruta: str) -> dict:
-    prompt = f"""Você recebeu a transcrição bruta de uma aula. Sua tarefa:
-1. Limpe muletas ("né", "tipo", repetições) sem alterar o conteúdo
-2. Organize em seções com títulos (markdown)
-3. Gere um resumo EXTREMAMENTE EXPANDIDO, MINUCIOSO, didático e detalhado de TODA a matéria, cobrindo ABSOLUTAMENTE TODOS os pontos essenciais da aula com profundidade. O resumo deve ter no mínimo 4 páginas de texto denso, estruturado em subtemas claros (## e ### em markdown).
-4. Gere uma apresentação da matéria com guia de estudos passo a passo prático com metas objetivas.
-5. Crie um "palácio mental" da matéria: uma narrativa de jornada por um edifício, do básico ao avançado. Use cômodos (#), salas (##) e detalhes (###). Conceitos específicos integrados em parágrafos/listas. Inclua analogias, associações visuais e frases-gatilho para memorização.
+def processar_tudo(transcricao_bruta: str) -> dict:
+    """Chamada única que gera TUDO: estruturação + deep dive + 30 flashcards."""
+    prompt = f"""Você é um assistente pedagógico. Analise a transcrição da aula abaixo e gere UM ÚNICO JSON com TODOS estes campos:
 
-Responda EXCLUSIVAMENTE com JSON:
-{{"titulo_sugerido": "...", "resumo_expandido": "...", "transcricao_estruturada": "# Seção 1\\n\\nconteúdo...", "guia_de_estudos": "...", "palacio_mental": "# Fundamentos\\n\\n## Conceitos..."}}
+1. **titulo_sugerido**: título acadêmico formal.
+2. **resumo_expandido**: Mínimo de 4 páginas de texto denso. Use ## e ### (markdown). Minucioso, cobrindo TODO detalhe técnico. Didático.
+3. **guia_de_estudos**: Passo a passo prático com metas objetivas para dominar a matéria.
+4. **palacio_mental**: Narrativa de jornada por um edifício, do básico ao avançado. Use # (cômodos), ## (salas), ### (detalhes). Analogias e frases-gatilho de memorização.
+5. **transcricao_destrinchada**: 100% do conteúdo técnico reescrito sem muletas, estruturado com markdown (# ## ###). Elimine caracteres no meio do texto (* - @ $).
+6. **analise_de_enfase**: O que o professor mais enfatizou e repetiu (termos como "importante", "essencial", "cuidado", "não esqueçam").
+7. **flashcards**: Mínimo de 30 flashcards EXTRAÍDOS DIRETAMENTE da transcrição bruta. Foco em detalhes técnicos e pontos repetidos pelo professor. Perguntas claras e específicas, respostas concisas (1-3 frases).
 
-Transcrição:
-{transcricao_bruta}"""
-    resp = _call_with_retry(prompt)
-    return _parse_json(resp.text)
-
-
-def deep_dive(transcricao_bruta: str) -> dict:
-    prompt = f"""Analise a transcrição abaixo com foco total em:
-1. Pontos que o professor repetiu mais de uma vez
-2. Afirmações com ênfase ("importante", "essencial", "cuidado", "não esqueçam")
-3. Destrinchar 100% do conteúdo técnico em estrutura detalhada
-4. Eliminar caracteres especiais no meio do texto (* - # @ $)
-
-REGRAS PARA FLASHCARDS:
-- Extraídos DIRETAMENTE da transcrição, não do resumo
-- Focar em detalhes técnicos e pontos repetidos pelo professor
-- Gere no mínimo 30 flashcards
-
-Responda EXCLUSIVAMENTE com JSON:
-{{"titulo_detalhado": "...", "analise_de_enfase": "...", "transcricao_destrinchada": "# Conteúdo Detalhado...", "flashcards_extensivos": [{{"pergunta": "...", "resposta": "..."}}]}}
+Responda EXCLUSIVAMENTE com JSON válido:
+{{
+  "titulo_sugerido": "...",
+  "resumo_expandido": "...",
+  "guia_de_estudos": "...",
+  "palacio_mental": "...",
+  "transcricao_destrinchada": "...",
+  "analise_de_enfase": "...",
+  "flashcards": [{{"pergunta": "...", "resposta": "..."}}]
+}}
 
 Transcrição:
 {transcricao_bruta}"""
+
     resp = _call_with_retry(prompt)
     return _parse_json(resp.text)
