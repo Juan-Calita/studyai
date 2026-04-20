@@ -389,11 +389,18 @@ body {
 .fc.flipped .fc-hint { color: rgba(255,255,255,.5); }
 
 .error-msg {
-  background: #FEE2E2; color: #991B1B;
-  padding: 14px 18px; border-radius: 10px;
+  background: linear-gradient(180deg, #FFF6F6 0%, #FFEAEA 100%); color: #991B1B;
+  padding: 16px 18px; border-radius: 14px;
   margin-top: 16px; font-size: 13px;
   border: 1px solid #FECACA;
+  box-shadow: 0 10px 24px rgba(153,27,27,.08);
 }
+.error-title { font-weight: 700; margin-bottom: 4px; color: #7F1D1D; }
+.error-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.btn-soft { background: rgba(121,66,249,.08); color: var(--primary); border: 1px solid rgba(121,66,249,.14); }
+.btn-soft:hover { background: rgba(121,66,249,.12); }
+.btn-light { background: rgba(255,255,255,.9); color: var(--ink); border: 1px solid rgba(121,66,249,.08); }
+.btn-light:hover { background: #fff; transform: translateY(-1px); }
 
 .tabs { display: inline-flex; gap: 6px; margin-top: 20px; flex-wrap: wrap; background: rgba(255,255,255,.75); padding: 6px; border-radius: 14px; border: 1px solid rgba(121,66,249,.08); box-shadow: 0 8px 20px rgba(28,24,50,.04); }
 .tab-btn {
@@ -519,6 +526,132 @@ body {
   transform: translateY(0);
 }
 
+.proc-topline { display:flex; justify-content:space-between; gap:14px; align-items:center; flex-wrap:wrap; }
+.proc-status-badge { padding:8px 12px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); color:#D5D0E9; font-size:11.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.proc-progress-wrap { margin-top: 18px; }
+.progress-track { height: 12px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.06); }
+.progress-fill { height:100%; width:0%; border-radius:999px; background: linear-gradient(90deg, #8E5BFF, #CBA8FF); box-shadow: 0 0 18px rgba(142,91,255,.45); transition: width .45s ease; }
+.proc-metrics { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-top:16px; }
+.proc-metric { background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 14px; }
+.proc-metric-label { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#9D96B8; font-weight:700; margin-bottom:6px; }
+.proc-metric-value { font-size:16px; font-weight:700; color:#fff; }
+.proc-hint { margin-top: 14px; color:#B9B2D4; font-size: 12.5px; line-height:1.55; max-width: 720px; }
+.proc-actions { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.result-strip { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-top:18px; }
+.result-stat { background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; }
+.result-stat-label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:#B9B2D4; font-weight:700; margin-bottom:6px; }
+.result-stat-value { font-size:18px; font-weight:700; color:#fff; }
+.result-stat-sub { margin-top:6px; color:#CFC9E5; font-size:12px; line-height:1.45; }
+.summary-lead { font-size: 15px; color: var(--ink); line-height:1.75; }
+.summary-block + .summary-block { margin-top: 16px; padding-top: 16px; border-top:1px solid var(--line); }
+.summary-chip-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+.summary-chip { padding:8px 12px; border-radius:999px; background: var(--primary-soft); color: var(--primary-2); font-size:11.5px; font-weight:700; }
+.transcript-toolbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.transcript-badge { padding:8px 12px; border-radius:999px; background: rgba(121,66,249,.08); color:var(--primary); font-size:11.5px; font-weight:700; }
+.transcript p { padding-left: 14px; border-left: 2px solid rgba(121,66,249,.12); }
+.panel-animated { transition: opacity .25s ease, transform .25s ease; }
+.panel-enter { opacity:0; transform: translateY(8px); }
+.upload-note { margin-top:16px; color:#C9C3E3; font-size:12px; line-height:1.6; }
+.drop-card.ready { border-color: rgba(16,185,129,.55); background: rgba(16,185,129,.08); }
+
+.contextual-onboarding {
+  margin: 0 0 18px;
+  background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(247,244,255,.92));
+  border: 1px solid rgba(121,66,249,.12);
+  border-radius: 24px;
+  box-shadow: 0 14px 40px rgba(28,24,50,.08);
+  padding: 22px;
+  position: relative;
+  overflow: hidden;
+}
+.contextual-onboarding::before {
+  content: ''; position: absolute; width: 240px; height: 240px; border-radius: 50%;
+  right: -80px; top: -100px;
+  background: radial-gradient(circle, rgba(121,66,249,.14), transparent 70%);
+  pointer-events: none;
+}
+.contextual-onboarding.hidden { display:none !important; }
+.contextual-head { position: relative; z-index: 1; display:flex; justify-content:space-between; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+.contextual-kicker { font-size: 11px; font-weight: 800; color: var(--primary); letter-spacing: .16em; text-transform: uppercase; margin-bottom: 10px; }
+.contextual-title { font-size: 24px; line-height: 1.08; letter-spacing: -.04em; color: var(--ink); max-width: 560px; }
+.contextual-sub { color: var(--ink-2); font-size: 14px; line-height: 1.65; max-width: 700px; margin-top: 10px; }
+.contextual-close { border: 0; background: #fff; color: var(--ink-2); width: 40px; height: 40px; border-radius: 999px; font-size: 20px; cursor:pointer; box-shadow: 0 8px 24px rgba(28,24,50,.08); }
+.contextual-steps { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: 20px; position: relative; z-index: 1; }
+.contextual-step {
+  background: rgba(255,255,255,.86);
+  border: 1px solid rgba(121,66,249,.10);
+  border-radius: 18px; padding: 16px;
+  box-shadow: 0 8px 24px rgba(28,24,50,.05);
+}
+.contextual-step-num { width: 32px; height: 32px; border-radius: 11px; display:grid; place-items:center; background: var(--primary-soft); color: var(--primary); font-weight: 800; margin-bottom: 12px; }
+.contextual-step-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 7px; }
+.contextual-step-sub { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+.contextual-actions { position: relative; z-index: 1; display:flex; justify-content:space-between; gap:14px; align-items:center; margin-top: 18px; flex-wrap: wrap; }
+.contextual-note { font-size: 13px; color: var(--ink-3); }
+.contextual-actions .btn { min-width: 0; }
+.trust-band {
+  display:grid; grid-template-columns: 1.2fr .8fr .8fr; gap: 14px; margin: 18px 0 24px;
+}
+.trust-band-card {
+  background: rgba(255,255,255,.88); border: 1px solid rgba(121,66,249,.08); border-radius: 18px; padding: 16px 18px;
+  box-shadow: 0 8px 28px rgba(28,24,50,.05);
+}
+.trust-band-kicker { font-size: 10px; font-weight: 800; color: var(--primary); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 8px; }
+.trust-band-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.trust-band-sub { font-size: 13px; line-height: 1.6; color: var(--ink-2); }
+.continue-shell {
+  margin-top: 20px; background: linear-gradient(135deg, rgba(121,66,249,.08), rgba(255,255,255,.92));
+  border: 1px solid rgba(121,66,249,.12); border-radius: 24px; padding: 22px; box-shadow: var(--shadow);
+}
+.continue-shell.hidden { display:none !important; }
+.continue-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+.continue-kicker { font-size: 11px; font-weight: 800; color: var(--primary); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 8px; }
+.continue-title { font-size: 24px; font-weight: 700; color: var(--ink); letter-spacing: -.03em; margin-bottom: 6px; }
+.continue-sub { max-width: 720px; color: var(--ink-2); line-height: 1.7; font-size: 13.5px; }
+.continue-card {
+  margin-top: 18px; background: #fff; border-radius: 20px; border: 1px solid rgba(121,66,249,.08); padding: 18px;
+  display:grid; grid-template-columns: 1.2fr .8fr; gap: 18px; align-items: center;
+}
+.continue-name { font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.continue-meta { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.continue-pill { padding: 7px 10px; border-radius: 999px; background: var(--primary-softer); color: var(--primary-2); font-size: 11px; font-weight: 700; }
+.continue-actions { display:flex; gap: 10px; flex-wrap: wrap; justify-content:flex-end; }
+.empty-state.rich { padding: 30px 22px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,244,255,.92)); }
+.empty-state.rich .empty-emoji { font-size: 42px; }
+.empty-badges { display:flex; gap: 8px; justify-content:center; flex-wrap:wrap; margin-top: 12px; }
+.empty-badge { padding: 8px 11px; border-radius:999px; background: rgba(121,66,249,.08); color: var(--primary-2); font-size: 11px; font-weight: 700; }
+.empty-actions { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top: 16px; }
+.export-empty {
+  margin-top: 14px; border: 1px dashed rgba(255,255,255,.18); border-radius: 18px; padding: 16px 18px;
+  background: rgba(255,255,255,.04); color: #D8D0F2;
+}
+.export-empty-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.export-empty-sub { font-size: 12.5px; line-height: 1.65; color: #C3BADF; }
+.empty-inline.rich {
+  display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding:18px 18px 16px; border-radius:18px;
+  background: linear-gradient(180deg, rgba(121,66,249,.06), rgba(121,66,249,.02)); border: 1px dashed rgba(121,66,249,.18);
+}
+.empty-inline-kicker { font-size: 10px; letter-spacing: .14em; color: var(--primary); font-weight: 800; text-transform: uppercase; }
+
+@media (max-width: 900px) {
+  .proc-metrics, .result-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .trust-band { grid-template-columns: 1fr; }
+  .continue-card { grid-template-columns: 1fr; }
+  .continue-actions { justify-content: flex-start; }
+  .contextual-steps { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .proc-metrics, .result-strip { grid-template-columns: 1fr; }
+  .page-wrap { padding: 16px 14px 32px; }
+  .page-title { font-size: 24px; line-height: 1.12; }
+  .page-sub { font-size: 13px; line-height: 1.6; }
+  .drop-card, .proc-hero, .hero, .history-shell, .continue-shell { padding: 20px 16px; }
+  .contextual-onboarding { padding: 20px 16px; border-radius: 22px; }
+  .contextual-title { font-size: 22px; }
+  .result-actions, .continue-actions, .empty-actions, .contextual-actions { width: 100%; }
+  .result-actions .btn, .continue-actions .btn, .empty-actions .btn, .contextual-actions .btn { width: 100%; justify-content: center; }
+}
+
 @media (max-width: 1100px) {
   .value-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
@@ -551,6 +684,315 @@ body {
   .emoji-rain { font-size: 30px; }
   input, button, textarea, select { font-size: 16px; }
 }
+
+
+/* Premium comfort upgrade */
+.history-shell {
+  margin: 22px 0 26px;
+  background: rgba(255,255,255,.76);
+  border: 1px solid rgba(121,66,249,.08);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: 0 18px 42px rgba(28,24,50,.05);
+  backdrop-filter: blur(10px);
+}
+.history-head {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  flex-wrap:wrap;
+  margin-bottom: 16px;
+}
+.history-kicker {
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--primary);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.history-title {
+  font-size: 24px;
+  letter-spacing: -.03em;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.history-sub {
+  color: var(--ink-3);
+  font-size: 13.5px;
+  line-height: 1.65;
+  max-width: 760px;
+}
+.history-grid {
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 14px;
+}
+.history-card {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,244,255,.96));
+  border: 1px solid rgba(121,66,249,.1);
+  border-radius: 20px;
+  padding: 18px;
+  overflow: hidden;
+  transition: transform .32s ease, box-shadow .32s ease, border-color .32s ease;
+}
+.history-card::after {
+  content:'';
+  position:absolute;
+  inset:auto -20% -40% auto;
+  width:180px;
+  height:180px;
+  border-radius:50%;
+  background: radial-gradient(circle, rgba(121,66,249,.12), transparent 70%);
+}
+.history-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 42px rgba(28,24,50,.08);
+  border-color: rgba(121,66,249,.18);
+}
+.history-card-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.history-date { font-size:11px; color: var(--ink-3); font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.history-name { font-size:16px; color:var(--ink); font-weight:700; line-height:1.35; margin-top:10px; max-width: 90%; }
+.history-meta-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+.history-pill { padding:7px 10px; border-radius:999px; background: var(--primary-soft); color: var(--primary-2); font-size:11px; font-weight:700; }
+.history-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; position:relative; z-index:1; }
+.history-mini-btn {
+  border: 1px solid rgba(121,66,249,.12);
+  background: rgba(255,255,255,.82);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.history-mini-btn:hover { background:#fff; }
+.empty-state {
+  min-height: 180px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  border-radius: 20px;
+  border: 1px dashed rgba(121,66,249,.18);
+  background: linear-gradient(180deg, rgba(247,244,255,.75), rgba(255,255,255,.92));
+  padding: 26px;
+}
+.empty-emoji { font-size: 34px; margin-bottom: 10px; }
+.empty-title { font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.empty-sub { max-width: 560px; color: var(--ink-3); font-size: 13.5px; line-height: 1.7; }
+.proc-journey {
+  display:grid;
+  grid-template-columns: minmax(0,1fr) 280px;
+  gap: 18px;
+  align-items:start;
+  margin-top: 18px;
+}
+.stages-grid {
+  display:flex;
+  flex-direction:column;
+  gap: 14px;
+  margin-top: 0;
+  position: relative;
+  padding-left: 0;
+}
+.stages-grid::before {
+  content:'';
+  position:absolute;
+  left: 15px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(159,108,255,.4), rgba(255,255,255,.1));
+}
+.stage {
+  position:relative;
+  padding: 18px 18px 18px 52px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  backdrop-filter: blur(8px);
+}
+.stage::before {
+  content:'';
+  position:absolute;
+  left: 8px;
+  top: 22px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.26);
+  background: #201a38;
+  z-index: 1;
+}
+.stage.done::before { background: var(--green); border-color: rgba(255,255,255,.3); box-shadow: 0 0 0 6px rgba(16,185,129,.14); }
+.stage.active::before { background: var(--primary); border-color: rgba(255,255,255,.3); box-shadow: 0 0 0 6px rgba(121,66,249,.18); }
+.stage-num { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+.stage-name { font-size: 15px; }
+.stage-desc { font-size: 12.5px; color: #B9B2D4; margin-top: 6px; line-height: 1.55; }
+.stage-bar { margin-top: 12px; height: 4px; background: rgba(255,255,255,.08); }
+.proc-side { position: relative; }
+.support-card {
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+.support-kicker { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#CFC8E8; font-weight:700; margin-bottom:8px; }
+.support-title { font-size:18px; font-weight:700; color:#fff; line-height:1.35; margin-bottom:8px; }
+.support-copy { color:#B9B2D4; font-size:13px; line-height:1.65; }
+.support-list { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+.support-list span { padding:8px 11px; border-radius:999px; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); font-size:11px; color:#E6E0FA; font-weight:700; }
+.btn-download {
+  min-width: 186px;
+  justify-content: flex-start;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #8D59FF 0%, #6D35F8 100%);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 18px 30px rgba(109,53,248,.28);
+  transition: transform .28s ease, box-shadow .28s ease, filter .28s ease;
+}
+.btn-download:hover { transform: translateY(-2px); box-shadow: 0 22px 36px rgba(109,53,248,.34); filter: saturate(1.06); }
+.btn-download.secondary {
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+  color: #fff;
+  box-shadow: none;
+}
+.btn-download-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display:grid;
+  place-items:center;
+  background: rgba(255,255,255,.12);
+  flex-shrink: 0;
+  font-size: 16px;
+}
+.btn-download-copy { display:flex; flex-direction:column; align-items:flex-start; line-height:1.15; }
+.btn-download-copy strong { font-size: 13.5px; font-weight: 700; }
+.btn-download-copy small { font-size: 11px; color: rgba(255,255,255,.78); margin-top: 4px; }
+
+.result-end-cta{
+  margin-top: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.98));
+  border: 1px solid rgba(121,66,249,.10);
+  border-radius: 24px;
+  box-shadow: 0 18px 42px rgba(28,24,50,.06);
+  padding: 22px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  flex-wrap:wrap;
+}
+.result-end-copy{ min-width: 240px; flex:1; }
+.result-end-kicker{
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--primary);
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.result-end-title{
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -.03em;
+  line-height: 1.15;
+}
+.result-end-sub{
+  margin-top: 8px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  line-height: 1.6;
+  max-width: 620px;
+}
+.btn-continue{
+  min-width: 228px;
+  justify-content: center;
+  padding: 14px 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #8D59FF 0%, #6D35F8 100%);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 20px 34px rgba(109,53,248,.24);
+  transition: transform .28s ease, box-shadow .28s ease, filter .28s ease;
+}
+.btn-continue:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 24px 40px rgba(109,53,248,.30);
+  filter: saturate(1.06);
+}
+.btn-continue .arrow{
+  display:inline-grid;
+  place-items:center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.16);
+  font-size: 14px;
+}
+
+.result-skeleton { display:grid; gap:16px; margin-top: 4px; }
+.skeleton-hero,
+.skeleton-card {
+  background: rgba(255,255,255,.88);
+  border: 1px solid rgba(121,66,249,.08);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 16px 34px rgba(28,24,50,.05);
+}
+.skeleton-panel-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; }
+.skeleton-line, .skeleton-pill {
+  position: relative;
+  overflow: hidden;
+  background: #EEEAF8;
+  border-radius: 999px;
+}
+.skeleton-line::after, .skeleton-pill::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent);
+  animation: skeletonShimmer 1.35s ease-in-out infinite;
+}
+.skeleton-line { height: 12px; margin-bottom: 12px; }
+.skeleton-line.lg { height: 20px; }
+.skeleton-pill { height: 74px; border-radius: 18px; }
+.skeleton-stat-grid { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-top: 18px; }
+.w-22 { width: 22%; } .w-24 { width: 24%; } .w-28 { width: 28%; } .w-42 { width: 42%; } .w-68 { width: 68%; } .w-74 { width: 74%; } .w-82 { width: 82%; } .w-86 { width: 86%; } .w-88 { width: 88%; } .w-90 { width: 90%; } .w-92 { width: 92%; }
+@keyframes skeletonShimmer { 100% { transform: translateX(100%); } }
+.empty-inline {
+  padding: 24px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #FBFAFE, #F6F3FD);
+  border: 1px dashed rgba(121,66,249,.18);
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.65;
+  text-align: center;
+}
+@media (max-width: 1100px) {
+  .history-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 900px) {
+  .proc-journey { grid-template-columns: 1fr; }
+  .support-card { order: 2; }
+  .history-grid, .skeleton-panel-grid, .skeleton-stat-grid { grid-template-columns: 1fr; }
+  .result-end-cta { padding: 18px; }
+  .result-end-title { font-size: 19px; }
+  .btn-continue { width: 100%; min-width: 0; }
+}
+
 </style>
 </head>
 <body>
@@ -591,6 +1033,57 @@ body {
           <div class="value-sub">Interface feita para revisar, exportar e reaproveitar o conteúdo com clareza.</div>
         </div>
       </div>
+
+
+      <section id="contextual-onboarding" class="contextual-onboarding reveal hidden" aria-label="Guia rápido de uso">
+        <div class="contextual-head">
+          <div>
+            <div class="contextual-kicker">Guia rápido</div>
+            <div class="contextual-title">O fluxo é simples e aparece dentro da própria tela, sem interromper o usuário.</div>
+            <div class="contextual-sub">Em vez de abrir um modal, a plataforma mostra orientações discretas no contexto certo. Isso reduz atrito, deixa a experiência mais confortável e mantém a sensação de controle desde a primeira visita.</div>
+          </div>
+          <button class="contextual-close" type="button" aria-label="Ocultar guia rápido" onclick="dismissOnboarding()">×</button>
+        </div>
+        <div class="contextual-steps">
+          <div class="contextual-step">
+            <div class="contextual-step-num">1</div>
+            <div class="contextual-step-title">Envie o áudio</div>
+            <div class="contextual-step-sub">Escolha a gravação e siga direto. Os formatos aceitos e a promessa de entrega já ficam visíveis na mesma área.</div>
+          </div>
+          <div class="contextual-step">
+            <div class="contextual-step-num">2</div>
+            <div class="contextual-step-title">Acompanhe com clareza</div>
+            <div class="contextual-step-sub">Durante o processamento, a interface mostra progresso, etapa atual e mensagens curtas para reduzir ansiedade.</div>
+          </div>
+          <div class="contextual-step">
+            <div class="contextual-step-num">3</div>
+            <div class="contextual-step-title">Revise e continue</div>
+            <div class="contextual-step-sub">No fim, o material fica pronto para leitura, revisão ativa, download e retomada no histórico deste navegador.</div>
+          </div>
+        </div>
+        <div class="contextual-actions">
+          <div class="contextual-note">Esse guia aparece só no início e pode ser ocultado sem travar o fluxo.</div>
+          <button class="btn btn-soft" type="button" onclick="dismissOnboarding(true)">Entendi, vamos começar</button>
+        </div>
+      </section>
+
+      <section class="trust-band reveal" aria-label="Confiança institucional">
+        <div class="trust-band-card">
+          <div class="trust-band-kicker">Confiança</div>
+          <div class="trust-band-title">Seus áudios ficam no centro da experiência, não no caminho.</div>
+          <div class="trust-band-sub">Fluxo com linguagem clara, processamento guiado e mensagem discreta de privacidade para que o usuário saiba o que está acontecendo em cada etapa.</div>
+        </div>
+        <div class="trust-band-card">
+          <div class="trust-band-kicker">Privacidade</div>
+          <div class="trust-band-title">Uso restrito à aula enviada</div>
+          <div class="trust-band-sub">O áudio enviado é processado para gerar transcrição, resumo e revisão, sem exigir configuração extra do usuário.</div>
+        </div>
+        <div class="trust-band-card">
+          <div class="trust-band-kicker">Tempo médio</div>
+          <div class="trust-band-title">Poucos minutos para concluir</div>
+          <div class="trust-band-sub">O processamento costuma terminar rapidamente e a interface continua orientando o usuário mesmo quando o arquivo leva mais tempo.</div>
+        </div>
+      </section>
 
       <div id="view-upload" class="hero reveal">
         <div class="hero-grid">
@@ -637,21 +1130,106 @@ body {
             <div class="drop-sub">Arraste e solte aqui ou clique para selecionar o arquivo de áudio.</div>
           </label>
         </div>
+        <div class="upload-note">Fluxo pensado para ser simples: enviar, processar, revisar e exportar. Para produção, esta mesma base já está pronta para encaixar validação, fila e histórico.</div>
         <div id="error-upload" class="error-msg hidden"></div>
       </div>
 
+      <section class="history-shell reveal">
+        <div class="history-head">
+          <div>
+            <div class="history-kicker">Continuidade</div>
+            <h3 class="history-title">Suas últimas aulas ficam à mão</h3>
+            <div class="history-sub">Volte para materiais recentes sem atrito. O histórico deixa a plataforma mais confortável e dá sensação de progresso contínuo.</div>
+          </div>
+          <button class="btn btn-light" type="button" onclick="clearHistory()">Limpar histórico</button>
+        </div>
+        <div id="history-empty" class="empty-state">
+          <div class="empty-emoji">🎧</div>
+          <div class="empty-title">Seu histórico aparece aqui</div>
+          <div class="empty-sub">Assim que você concluir uma aula, ela passa a aparecer nesta área com data, volume de conteúdo e atalhos rápidos.</div>
+        </div>
+        <div id="history-list" class="history-grid hidden"></div>
+      </section>
+
+
+      <section id="continue-shell" class="continue-shell reveal hidden">
+        <div class="continue-head">
+          <div>
+            <div class="continue-kicker">Continue estudando</div>
+            <div class="continue-title">Retome de onde parou sem precisar começar do zero.</div>
+            <div class="continue-sub">A plataforma guarda sua aula mais recente neste navegador para você reabrir o material, continuar a leitura ou baixar os arquivos novamente.</div>
+          </div>
+        </div>
+        <div id="continue-card" class="continue-card"></div>
+      </section>
+
       <div id="view-processing" class="proc-hero hidden reveal">
-        <div class="proc-label">
-          <span class="pulse-dot"></span>
-          PROCESSAMENTO EM ANDAMENTO
+        <div class="proc-topline">
+          <div class="proc-label">
+            <span class="pulse-dot"></span>
+            PROCESSAMENTO EM ANDAMENTO
+          </div>
+          <div class="proc-status-badge" id="proc-status-badge">em fila</div>
         </div>
         <h2 class="proc-title" id="proc-title">Processando aula...</h2>
         <div class="proc-file" id="proc-file"></div>
+        <div class="proc-progress-wrap">
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+        <div class="proc-metrics">
+          <div class="proc-metric"><div class="proc-metric-label">Progresso</div><div class="proc-metric-value" id="metric-progress">0%</div></div>
+          <div class="proc-metric"><div class="proc-metric-label">Etapa</div><div class="proc-metric-value" id="metric-stage">Upload</div></div>
+          <div class="proc-metric"><div class="proc-metric-label">Tempo</div><div class="proc-metric-value" id="metric-elapsed">00:00</div></div>
+          <div class="proc-metric"><div class="proc-metric-label">Status</div><div class="proc-metric-value" id="metric-health">Estável</div></div>
+        </div>
         <div class="wave-bars" id="wave-bars"></div>
-        <div class="stages-grid" id="stages-grid"></div>
+        <div class="proc-journey">
+          <div class="stages-grid" id="stages-grid"></div>
+          <div class="proc-side">
+            <div class="support-card">
+              <div class="support-kicker">Experiência</div>
+              <div class="support-title" id="support-title">Você envia. A plataforma organiza.</div>
+              <div class="support-copy" id="support-copy">Enquanto o processamento acontece, o fluxo mantém tudo claro para transmitir calma, controle e confiança.</div>
+              <div class="support-list">
+                <span>Leitura mais limpa</span>
+                <span>Revisão mais rápida</span>
+                <span>Saída pronta para uso</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="proc-hint" id="proc-hint">Estamos validando o arquivo e preparando a transcrição inicial.</div>
+        <div class="proc-actions">
+          <button class="btn btn-light" type="button" onclick="cancelProcessing()">Cancelar</button>
+        </div>
       </div>
 
       <div id="view-result" class="hidden reveal">
+        <div id="result-skeleton" class="result-skeleton hidden">
+          <div class="skeleton-card skeleton-hero">
+            <div class="skeleton-line w-22"></div>
+            <div class="skeleton-line w-68 lg"></div>
+            <div class="skeleton-line w-42"></div>
+            <div class="skeleton-stat-grid">
+              <div class="skeleton-pill"></div><div class="skeleton-pill"></div><div class="skeleton-pill"></div><div class="skeleton-pill"></div>
+            </div>
+          </div>
+          <div class="skeleton-panel-grid">
+            <div class="skeleton-card">
+              <div class="skeleton-line w-28"></div>
+              <div class="skeleton-line w-92"></div>
+              <div class="skeleton-line w-86"></div>
+              <div class="skeleton-line w-74"></div>
+            </div>
+            <div class="skeleton-card">
+              <div class="skeleton-line w-24"></div>
+              <div class="skeleton-line w-88"></div>
+              <div class="skeleton-line w-82"></div>
+              <div class="skeleton-line w-90"></div>
+            </div>
+          </div>
+        </div>
+        <div id="result-content" class="hidden">
         <div class="proc-hero result-hero">
           <div class="result-head">
             <div>
@@ -664,6 +1242,12 @@ body {
             </div>
             <div class="result-actions" id="result-actions"></div>
           </div>
+          <div class="result-strip">
+            <div class="result-stat"><div class="result-stat-label">Flashcards</div><div class="result-stat-value" id="stat-flashcards">0</div><div class="result-stat-sub">Cards prontos para revisão ativa.</div></div>
+            <div class="result-stat"><div class="result-stat-label">Blocos</div><div class="result-stat-value" id="stat-blocks">0</div><div class="result-stat-sub">Seções organizadas para leitura rápida.</div></div>
+            <div class="result-stat"><div class="result-stat-label">Parágrafos</div><div class="result-stat-value" id="stat-paragraphs">0</div><div class="result-stat-sub">Trechos estruturados na transcrição.</div></div>
+            <div class="result-stat"><div class="result-stat-label">Exportações</div><div class="result-stat-value" id="stat-exports">0</div><div class="result-stat-sub">Arquivos prontos para baixar e reutilizar.</div></div>
+          </div>
         </div>
 
         <div class="tabs">
@@ -671,32 +1255,52 @@ body {
           <button class="tab-btn" data-tab="flashcards" onclick="showTab('flashcards')">Flashcards</button>
         </div>
 
-        <div id="tab-resumo" class="workspace" style="margin-top:18px">
+        <div id="tab-resumo" class="workspace panel-animated" style="margin-top:18px">
           <div class="panel">
             <div class="panel-head">
               <div class="sec-label">Resumo expandido</div>
             </div>
             <div class="summary-text" id="summary-text"></div>
+            <div class="summary-chip-row" id="summary-chips"></div>
           </div>
           <div class="panel">
             <div class="panel-head">
               <div class="sec-label">Transcrição</div>
             </div>
+            <div class="transcript-toolbar">
+              <div class="transcript-badge" id="transcript-badge">leitura organizada</div>
+              <div class="panel-meta" id="transcript-meta">0 blocos</div>
+            </div>
             <div class="transcript" id="transcript-text"></div>
           </div>
         </div>
 
-        <div id="tab-flashcards" class="panel hidden" style="margin-top:18px">
+        <div id="tab-flashcards" class="panel hidden panel-animated panel-enter" style="margin-top:18px">
           <div class="panel-head">
             <div class="sec-label">Flashcards</div>
             <div class="panel-meta" id="fc-count"></div>
           </div>
           <div class="cards-grid" id="cards-grid"></div>
         </div>
+
+        <div class="result-end-cta reveal" id="result-end-cta">
+          <div class="result-end-copy">
+            <div class="result-end-kicker">Próximo passo</div>
+            <div class="result-end-title">Quando quiser, comece uma nova aula em um clique.</div>
+            <div class="result-end-sub">O fluxo reinicia limpo, sem perder o histórico recente. Isso deixa a experiência mais confortável e incentiva o uso contínuo.</div>
+          </div>
+          <button type="button" class="btn btn-continue" onclick="startNewLesson()">
+            Iniciar nova aula
+            <span class="arrow">→</span>
+          </button>
+        </div>
       </div>
+        </div>
     </div>
   </div>
 </div>
+
+
 
 <!-- POP-UP NAMORO -->
 <div id="popup-namoro" class="popup-overlay hidden">
@@ -725,6 +1329,207 @@ body {
 const API = window.location.origin;
 let aulaData = null;
 let pendingDownloadUrl = null;
+let processingInterval = null;
+let processingSmooth = null;
+let processingTimer = null;
+let processingStartedAt = null;
+let lastKnownProgress = 0;
+const MAX_FILE_MB = 150;
+const HISTORY_KEY = 'anamnes_recent_history_v2';
+const ONBOARDING_KEY = 'anamnes_onboarding_seen_v1';
+const CONTINUE_KEY = 'anamnes_continue_lesson_v1';
+
+
+
+function getHistoryItems() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveHistoryItem(item) {
+  try {
+    const items = getHistoryItems().filter(v => !(v.titulo === item.titulo && v.createdAt === item.createdAt));
+    items.unshift(item);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 6)));
+  } catch (_) {}
+}
+
+
+function saveContinueLesson(item) {
+  try {
+    localStorage.setItem(CONTINUE_KEY, JSON.stringify(item));
+  } catch (_) {}
+}
+
+function getContinueLesson() {
+  try {
+    const raw = localStorage.getItem(CONTINUE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function formatHistoryDate(value) {
+  return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase();
+}
+
+function buildElegantEmptyState({emoji, title, sub, badges = [], primaryText = 'Enviar aula agora'}) {
+  return `
+    <div class="empty-state rich">
+      <div class="empty-emoji">${emoji}</div>
+      <div class="empty-title">${title}</div>
+      <div class="empty-sub">${sub}</div>
+      ${badges.length ? `<div class="empty-badges">${badges.map(b => `<span class="empty-badge">${b}</span>`).join('')}</div>` : ''}
+      <div class="empty-actions">
+        <button class="btn btn-light" type="button" onclick="focusUploadArea()">${primaryText}</button>
+      </div>
+    </div>
+  `;
+}
+
+function focusUploadArea() {
+  const upload = document.getElementById('view-upload');
+  if (upload) upload.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function openStoredLesson(item) {
+  if (!item) return;
+  aulaData = {
+    titulo: item.titulo || 'Aula recente',
+    resumo: item.resumo || '',
+    transcricao: item.transcricao || '',
+    flashcards: item.flashcards_data || [],
+    pdf_url: item.pdf_url || '',
+    anki_url: item.anki_url || ''
+  };
+  document.getElementById('view-upload').classList.remove('hidden');
+  renderResult();
+  setTimeout(() => {
+    document.getElementById('view-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 120);
+}
+
+function renderContinueSection() {
+  const shell = document.getElementById('continue-shell');
+  const card = document.getElementById('continue-card');
+  const item = getContinueLesson() || getHistoryItems()[0];
+  if (!shell || !card) return;
+  if (!item) {
+    shell.classList.add('hidden');
+    card.innerHTML = '';
+    return;
+  }
+  shell.classList.remove('hidden');
+  const date = formatHistoryDate(item.createdAt || new Date().toISOString());
+  card.innerHTML = `
+    <div>
+      <div class="history-date">${date}</div>
+      <div class="continue-name">${item.titulo || 'Aula recente'}</div>
+      <div class="continue-meta">
+        <span class="continue-pill">${item.flashcards || 0} cards</span>
+        <span class="continue-pill">${item.blocks || 0} blocos</span>
+        <span class="continue-pill">${item.exports || 0} exportações</span>
+      </div>
+    </div>
+    <div class="continue-actions">
+      <button class="btn btn-light" type="button" onclick="openStoredLesson(getContinueLesson() || getHistoryItems()[0])">Abrir material</button>
+      <button class="btn btn-soft" type="button" onclick="focusUploadArea()">Nova aula</button>
+    </div>
+  `;
+}
+
+function maybeShowOnboarding() {
+  try {
+    if (localStorage.getItem(ONBOARDING_KEY)) return;
+  } catch (_) {}
+  const panel = document.getElementById('contextual-onboarding');
+  if (panel) panel.classList.remove('hidden');
+}
+
+function dismissOnboarding(scrollToUpload = false) {
+  try { localStorage.setItem(ONBOARDING_KEY, '1'); } catch (_) {}
+  const panel = document.getElementById('contextual-onboarding');
+  if (panel) panel.classList.add('hidden');
+  if (scrollToUpload) focusUploadArea();
+}
+
+function clearHistory() {
+  try { localStorage.removeItem(HISTORY_KEY); localStorage.removeItem(CONTINUE_KEY); } catch (_) {}
+  renderHistory();
+  renderContinueSection();
+}
+
+
+function renderHistory() {
+  const items = getHistoryItems();
+  const empty = document.getElementById('history-empty');
+  const list = document.getElementById('history-list');
+  if (!empty || !list) return;
+  if (!items.length) {
+    empty.classList.remove('hidden');
+    empty.innerHTML = buildElegantEmptyState({
+      emoji: '🎧',
+      title: 'Seu histórico aparece aqui',
+      sub: 'Assim que você concluir a primeira aula, esta área passa a mostrar seus materiais recentes com atalhos para abrir, revisar e baixar novamente.',
+      badges: ['reabertura rápida', 'continuidade no navegador', 'atalhos de revisão'],
+      primaryText: 'Enviar primeira aula'
+    });
+    list.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  empty.classList.add('hidden');
+  list.classList.remove('hidden');
+  list.innerHTML = '';
+  items.forEach((item) => {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+    const date = formatHistoryDate(item.createdAt);
+    card.innerHTML =
+      '<div class="history-card-top">' +
+        '<div class="history-date">' + date + '</div>' +
+        '<div class="history-pill">recente</div>' +
+      '</div>' +
+      '<div class="history-name">' + item.titulo + '</div>' +
+      '<div class="history-meta-row">' +
+        '<span class="history-pill">' + item.flashcards + ' cards</span>' +
+        '<span class="history-pill">' + item.blocks + ' blocos</span>' +
+        '<span class="history-pill">' + item.exports + ' exportações</span>' +
+      '</div>' +
+      '<div class="history-actions"></div>';
+    const actions = card.querySelector('.history-actions');
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'history-mini-btn';
+    openBtn.textContent = 'Abrir material';
+    openBtn.onclick = () => openStoredLesson(item);
+    actions.appendChild(openBtn);
+    if (item.pdf_url) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'history-mini-btn';
+      btn.textContent = 'Baixar PDF';
+      btn.onclick = () => interceptarDownload({ preventDefault(){} }, API + item.pdf_url);
+      actions.appendChild(btn);
+    }
+    if (item.anki_url) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'history-mini-btn';
+      btn.textContent = 'Baixar Anki';
+      btn.onclick = () => interceptarDownload({ preventDefault(){} }, API + item.anki_url);
+      actions.appendChild(btn);
+    }
+    list.appendChild(card);
+  });
+  renderContinueSection();
+}
+
 
 function initWaveBars() {
   const wrap = document.getElementById('wave-bars');
@@ -747,10 +1552,10 @@ function updateWaveBars(progress) {
 }
 
 const STAGES = [
-  { n: '01', name: 'Upload' },
-  { n: '02', name: 'Transcrevendo' },
-  { n: '03', name: 'Resumindo' },
-  { n: '04', name: 'Estruturando' },
+  { n: '01', name: 'Upload', desc: 'Recebimento, validação e preparo da fila.' },
+  { n: '02', name: 'Transcrição', desc: 'Conversão do áudio em texto limpo e navegável.' },
+  { n: '03', name: 'Resumo e cards', desc: 'Síntese do conteúdo e geração de revisão ativa.' },
+  { n: '04', name: 'Exportação', desc: 'Consolidação final para leitura e download.' },
 ];
 
 function renderStages(currentStage, stageProgress) {
@@ -759,12 +1564,13 @@ function renderStages(currentStage, stageProgress) {
   STAGES.forEach((s, i) => {
     const done = i < currentStage;
     const active = i === currentStage;
-    const label = done ? 'FEITO' : active ? 'EM ANDAMENTO' : 'PENDENTE';
+    const label = done ? 'concluído' : active ? 'em andamento' : 'na fila';
     const el = document.createElement('div');
     el.className = 'stage' + (done ? ' done' : active ? ' active' : '');
     el.innerHTML =
       '<div class="stage-num">' + s.n + ' · ' + label + '</div>' +
       '<div class="stage-name">' + s.name + '</div>' +
+      '<div class="stage-desc">' + s.desc + '</div>' +
       '<div class="stage-bar"><div class="stage-bar-fill" style="width:' +
       (done ? 100 : active ? stageProgress : 0) + '%"></div></div>';
     wrap.appendChild(el);
@@ -775,6 +1581,8 @@ document.getElementById('drop-card').addEventListener('click', (e) => {
   if (e.target.tagName !== 'INPUT') document.getElementById('file-input').click();
 });
 document.getElementById('file-input').addEventListener('change', handleUpload);
+
+function resetUploadInput(){ document.getElementById('file-input').value = ''; }
 
 const dropCard = document.getElementById('drop-card');
 ['dragenter', 'dragover'].forEach(ev => {
@@ -792,15 +1600,87 @@ dropCard.addEventListener('drop', (e) => {
   if (file) handleUpload({ target: { files: [file] } });
 });
 
+
+function formatTime(totalSeconds) {
+  const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+  const secs = String(totalSeconds % 60).padStart(2, '0');
+  return `${mins}:${secs}`;
+}
+
+function setProcessingState({progress, stageName, badge, hint, health}) {
+  if (typeof progress === 'number') {
+    lastKnownProgress = Math.max(lastKnownProgress, Math.min(progress, 100));
+    document.getElementById('metric-progress').textContent = `${Math.round(lastKnownProgress)}%`;
+    document.getElementById('progress-fill').style.width = `${lastKnownProgress}%`;
+    updateWaveBars(lastKnownProgress);
+  }
+  if (stageName) {
+    document.getElementById('metric-stage').textContent = stageName;
+    const supportTitle = document.getElementById('support-title');
+    const supportCopy = document.getElementById('support-copy');
+    if (supportTitle) supportTitle.textContent = `${stageName} com clareza e conforto`;
+    if (supportCopy) supportCopy.textContent = hint || 'Fluxo em andamento com feedback visual para manter controle e tranquilidade durante a espera.';
+  }
+  if (badge) document.getElementById('proc-status-badge').textContent = badge;
+  if (hint) document.getElementById('proc-hint').textContent = hint;
+  if (health) document.getElementById('metric-health').textContent = health;
+}
+
+function resetProcessing() {
+  if (processingInterval) clearInterval(processingInterval);
+  if (processingSmooth) clearInterval(processingSmooth);
+  if (processingTimer) clearInterval(processingTimer);
+  processingInterval = null; processingSmooth = null; processingTimer = null;
+  processingStartedAt = null; lastKnownProgress = 0;
+}
+
+function cancelProcessing() {
+  resetProcessing();
+  document.getElementById('view-processing').classList.add('hidden');
+  document.getElementById('view-result').classList.add('hidden');
+  document.getElementById('view-upload').classList.remove('hidden');
+  document.getElementById('error-upload').classList.add('hidden');
+  resetUploadInput();
+}
+
+function startNewLesson() {
+  cancelProcessing();
+  showTab('resumo');
+  focusUploadArea();
+}
+
+
+function retryUpload() {
+  document.getElementById('error-upload').classList.add('hidden');
+  resetUploadInput();
+  document.getElementById('file-input').click();
+}
+
 async function handleUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
 
+  const isAudio = file.type.startsWith('audio/') || /\.(mp3|m4a|wav|ogg|aac)$/i.test(file.name);
+  if (!isAudio) {
+    showError('Formato inválido. Envie um arquivo de áudio em MP3, M4A, WAV, OGG ou AAC.');
+    return;
+  }
+  if ((file.size / (1024 * 1024)) > MAX_FILE_MB) {
+    showError(`Arquivo muito grande. O limite atual de teste é ${MAX_FILE_MB} MB.`);
+    return;
+  }
+
+  document.getElementById('error-upload').classList.add('hidden');
+  dropCard.classList.add('ready');
   document.getElementById('view-upload').classList.add('hidden');
+  document.getElementById('view-result').classList.add('hidden');
   document.getElementById('view-processing').classList.remove('hidden');
   document.getElementById('proc-file').textContent = file.name + ' · ' + (file.size / (1024*1024)).toFixed(1) + ' MB';
+  document.getElementById('metric-elapsed').textContent = '00:00';
+  document.getElementById('metric-health').textContent = 'Estável';
   initWaveBars();
-  renderStages(0, 50);
+  renderStages(0, 14);
+  setProcessingState({ progress: 8, stageName: 'Upload', badge: 'recebendo', hint: 'Arquivo recebido. Estamos validando formato, tamanho e preparando a fila.', health: 'Estável' });
 
   try {
     const form = new FormData();
@@ -817,86 +1697,173 @@ async function handleUpload(e) {
 
 function pollStatus(id) {
   const stageMap = {
-    'processando': { stage: 0, title: 'Recebendo arquivo e validando envio...' },
-    'transcrevendo': { stage: 1, title: 'Transcrevendo aula e organizando o conteúdo...' },
-    'estruturando': { stage: 2, title: 'Gerando resumo expandido...' },
-    'gerando_conteudo': { stage: 2, title: 'Montando resumo e flashcards...' },
-    'gerando_arquivos': { stage: 3, title: 'Preparando arquivos para download...' },
+    'processando': { stage: 0, title: 'Recebendo arquivo e validando envio...', stageName: 'Upload', badge: 'recebendo', progressBase: 12, hint: 'Seu arquivo foi recebido. Estamos garantindo uma entrada estável antes da transcrição.' },
+    'transcrevendo': { stage: 1, title: 'Transcrevendo aula e organizando o conteúdo...', stageName: 'Transcrição', badge: 'transcrevendo', progressBase: 38, hint: 'A IA está convertendo o áudio em texto com estrutura para leitura e revisão.' },
+    'estruturando': { stage: 2, title: 'Gerando resumo expandido...', stageName: 'Resumo', badge: 'resumindo', progressBase: 64, hint: 'Agora o conteúdo está sendo condensado em blocos claros e reutilizáveis.' },
+    'gerando_conteudo': { stage: 2, title: 'Montando resumo e flashcards...', stageName: 'Flashcards', badge: 'estruturando', progressBase: 78, hint: 'Estamos transformando o conteúdo em material de revisão ativa.' },
+    'gerando_arquivos': { stage: 3, title: 'Preparando arquivos para download...', stageName: 'Exportação', badge: 'finalizando', progressBase: 92, hint: 'Última etapa: preparando os arquivos e consolidando a saída final.' },
   };
 
   let currentStage = 0;
-  let stageProgress = 10;
+  let stageProgress = 14;
+  processingStartedAt = Date.now();
+  resetProcessing();
+  processingStartedAt = Date.now();
 
-  const smooth = setInterval(() => {
-    if (stageProgress < 95) {
-      stageProgress += 2;
-      renderStages(currentStage, stageProgress);
-      updateWaveBars((currentStage * 25) + (stageProgress * 0.25));
+  processingTimer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - processingStartedAt) / 1000);
+    document.getElementById('metric-elapsed').textContent = formatTime(elapsed);
+    if (elapsed > 45 && lastKnownProgress < 100) {
+      document.getElementById('metric-health').textContent = 'Processando';
     }
-  }, 800);
+    if (elapsed > 90 && lastKnownProgress < 100) {
+      document.getElementById('metric-health').textContent = 'Demorado';
+      document.getElementById('proc-hint').textContent = 'O arquivo está levando mais tempo que o habitual, mas o processo segue em andamento.';
+    }
+  }, 1000);
 
-  const interval = setInterval(async () => {
+  processingSmooth = setInterval(() => {
+    if (stageProgress < 96) {
+      stageProgress += currentStage >= 3 ? 1 : 2;
+      renderStages(currentStage, stageProgress);
+      const base = currentStage * 25;
+      setProcessingState({ progress: Math.min(base + (stageProgress * 0.24), 97) });
+    }
+  }, 850);
+
+  processingInterval = setInterval(async () => {
     try {
       const res = await fetch(API + '/api/aulas/' + id);
+      if (!res.ok) throw new Error('Falha ao consultar o processamento.');
       const data = await res.json();
 
       if (stageMap[data.status]) {
-        if (currentStage !== stageMap[data.status].stage) {
-          currentStage = stageMap[data.status].stage;
-          stageProgress = 10;
+        const meta = stageMap[data.status];
+        if (currentStage !== meta.stage) {
+          currentStage = meta.stage;
+          stageProgress = 18;
         }
-        document.getElementById('proc-title').textContent = stageMap[data.status].title;
+        document.getElementById('proc-title').textContent = meta.title;
+        renderStages(currentStage, stageProgress);
+        setProcessingState({ progress: meta.progressBase, stageName: meta.stageName, badge: meta.badge, hint: meta.hint, health: 'Estável' });
       }
 
       if (data.status === 'pronto') {
-        clearInterval(interval);
-        clearInterval(smooth);
+        resetProcessing();
         renderStages(4, 100);
-        updateWaveBars(100);
+        setProcessingState({ progress: 100, stageName: 'Concluído', badge: 'pronto', hint: 'Tudo certo. O material já pode ser revisado e exportado.', health: 'Concluído' });
         aulaData = data;
-        setTimeout(() => renderResult(), 600);
+        setTimeout(() => renderResult(), 420);
       } else if (data.status === 'erro') {
-        clearInterval(interval);
-        clearInterval(smooth);
+        resetProcessing();
         showError(data.erro || 'Não foi possível concluir o processamento.');
       }
-    } catch (_) {}
+    } catch (_) {
+      document.getElementById('metric-health').textContent = 'Reconectando';
+    }
   }, 2000);
 }
 
 function showError(msg) {
+  resetProcessing();
   document.getElementById('view-processing').classList.add('hidden');
   document.getElementById('view-upload').classList.remove('hidden');
   const el = document.getElementById('error-upload');
-  el.textContent = msg;
+  el.innerHTML = '<div class="error-title">Não foi possível concluir esta etapa</div><div>' + msg + '</div><div class="error-actions"><button class="btn btn-soft" type="button" onclick="retryUpload()">Tentar novamente</button><button class="btn btn-light" type="button" onclick="cancelProcessing()">Voltar</button></div>';
   el.classList.remove('hidden');
+  dropCard.classList.remove('ready');
+}
+
+function summarizeTextBlocks(text) {
+  return (text || '').split(/\n\n+/).map(v => v.trim()).filter(Boolean);
+}
+
+function buildSummaryHtml(summary) {
+  const blocks = summarizeTextBlocks(summary);
+  if (!blocks.length) return '<div class="summary-lead">Nenhum resumo foi gerado ainda.</div>';
+  return blocks.map((block, index) => {
+    if (index === 0) return `<div class="summary-block"><div class="summary-lead">${block}</div></div>`;
+    return `<div class="summary-block">${block}</div>`;
+  }).join('');
+}
+
+function showResultSkeleton() {
+  const view = document.getElementById('view-result');
+  const skeleton = document.getElementById('result-skeleton');
+  const content = document.getElementById('result-content');
+  view.classList.remove('hidden');
+  skeleton.classList.remove('hidden');
+  content.classList.add('hidden');
+}
+
+function hideResultSkeleton() {
+  const skeleton = document.getElementById('result-skeleton');
+  const content = document.getElementById('result-content');
+  skeleton.classList.add('hidden');
+  content.classList.remove('hidden');
 }
 
 function renderResult() {
   document.getElementById('view-processing').classList.add('hidden');
+  showResultSkeleton();
+  setTimeout(() => {
+    renderResultContent();
+    hideResultSkeleton();
+  }, 680);
+}
+
+function renderResultContent() {
   document.getElementById('view-result').classList.remove('hidden');
+  document.getElementById('view-result').classList.add('is-visible');
 
   document.getElementById('result-title').textContent = aulaData.titulo;
-  const fcCount = (aulaData.flashcards || []).length;
+  const flashcards = (aulaData.flashcards || []);
+  const fcCount = flashcards.length;
+  const transcriptBlocks = summarizeTextBlocks(aulaData.transcricao || '');
+  const paragraphCount = transcriptBlocks.length;
+  const summaryBlocks = summarizeTextBlocks(aulaData.resumo || '');
+  const exportCount = Number(Boolean(aulaData.pdf_url)) + Number(Boolean(aulaData.anki_url));
   const now = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase();
-  document.getElementById('result-meta').textContent = now + ' · ' + fcCount + ' flashcards gerados';
+  document.getElementById('result-meta').textContent = now + ' · material consolidado para revisão e exportação';
+  document.getElementById('stat-flashcards').textContent = fcCount;
+  document.getElementById('stat-blocks').textContent = summaryBlocks.length;
+  document.getElementById('stat-paragraphs').textContent = paragraphCount;
+  document.getElementById('stat-exports').textContent = exportCount;
 
   const act = document.getElementById('result-actions');
   act.innerHTML = '';
   if (aulaData.pdf_url) {
     const a = document.createElement('a');
-    a.href = '#'; a.className = 'btn btn-dark'; a.textContent = '📄 Baixar PDF';
+    a.href = '#'; a.className = 'btn btn-download'; a.innerHTML = '<span class="btn-download-icon">↓</span><span class="btn-download-copy"><strong>Baixar PDF</strong><small>Resumo organizado para levar</small></span>';
     a.onclick = (e) => interceptarDownload(e, API + aulaData.pdf_url);
     act.appendChild(a);
   }
   if (aulaData.anki_url) {
     const a = document.createElement('a');
-    a.href = '#'; a.className = 'btn btn-dark'; a.textContent = '📦 Baixar Anki';
+    a.href = '#'; a.className = 'btn btn-download secondary'; a.innerHTML = '<span class="btn-download-icon">⟲</span><span class="btn-download-copy"><strong>Baixar deck Anki</strong><small>Revisão ativa pronta para continuar</small></span>';
     a.onclick = (e) => interceptarDownload(e, API + aulaData.anki_url);
     act.appendChild(a);
   }
+  const retryBtn = document.createElement('button');
+  retryBtn.type = 'button'; retryBtn.className = 'btn btn-light'; retryBtn.textContent = 'Nova aula';
+  retryBtn.onclick = cancelProcessing;
+  act.appendChild(retryBtn);
+  if (!exportCount) {
+    const emptyExport = document.createElement('div');
+    emptyExport.className = 'export-empty';
+    emptyExport.innerHTML = '<div class="export-empty-title">Exportações indisponíveis nesta rodada</div><div class="export-empty-sub">Quando o backend enviar PDF ou deck, os botões aparecem aqui automaticamente. Enquanto isso, o usuário ainda pode ler, revisar e retomar este material depois.</div>';
+    act.appendChild(emptyExport);
+  }
 
-  document.getElementById('summary-text').textContent = aulaData.resumo || '';
+  document.getElementById('summary-text').innerHTML = aulaData.resumo ? buildSummaryHtml(aulaData.resumo || '') : '<div class="empty-inline rich"><div class="empty-inline-kicker">Resumo indisponível</div><div>Ainda não houve resumo consolidado para este material. Quando a saída vier completa, ela aparecerá aqui em blocos fáceis de escanear e revisar.</div></div>';
+  const chips = document.getElementById('summary-chips');
+  chips.innerHTML = '';
+  ['Resumo estruturado', fcCount + ' flashcards', paragraphCount + ' blocos de transcrição'].forEach(text => {
+    const chip = document.createElement('span');
+    chip.className = 'summary-chip';
+    chip.textContent = text;
+    chips.appendChild(chip);
+  });
 
   const tr = document.getElementById('transcript-text');
   tr.innerHTML = '';
@@ -907,11 +1874,32 @@ function renderResult() {
     else if (b.startsWith('### ')) { const h = document.createElement('h3'); h.textContent = b.slice(4); tr.appendChild(h); }
     else { const p = document.createElement('p'); p.textContent = b; tr.appendChild(p); }
   });
+  document.getElementById('transcript-meta').textContent = paragraphCount + ' blocos estruturados';
+  document.getElementById('transcript-badge').textContent = paragraphCount > 12 ? 'conteúdo extenso' : 'leitura organizada';
+  const storedLesson = {
+    titulo: aulaData.titulo,
+    createdAt: new Date().toISOString(),
+    flashcards: fcCount,
+    blocks: summaryBlocks.length,
+    exports: exportCount,
+    pdf_url: aulaData.pdf_url || '',
+    anki_url: aulaData.anki_url || '',
+    resumo: aulaData.resumo || '',
+    transcricao: aulaData.transcricao || '',
+    flashcards_data: flashcards
+  };
+  saveHistoryItem(storedLesson);
+  saveContinueLesson(storedLesson);
+  renderHistory();
+  renderContinueSection();
 
   document.getElementById('fc-count').textContent = fcCount + ' cards';
   const grid = document.getElementById('cards-grid');
   grid.innerHTML = '';
-  (aulaData.flashcards || []).forEach((fc, i) => {
+  if (!flashcards.length) {
+    grid.innerHTML = buildElegantEmptyState({ emoji: '🃏', title: 'Ainda não há flashcards nesta aula', sub: 'Nem toda saída gera cards na mesma rodada. Quando houver perguntas e respostas, elas aparecerão aqui em formato pronto para revisão ativa.', badges: ['revisão ativa', 'toque para virar', 'continuidade automática'], primaryText: 'Enviar outra aula' });
+  }
+  flashcards.forEach((fc, i) => {
     const div = document.createElement('div');
     div.className = 'fc';
     const num = (i + 1).toString().padStart(2, '0');
@@ -933,8 +1921,15 @@ function renderResult() {
 }
 
 function showTab(name) {
-  document.getElementById('tab-resumo').classList.toggle('hidden', name !== 'resumo');
-  document.getElementById('tab-flashcards').classList.toggle('hidden', name !== 'flashcards');
+  const resumo = document.getElementById('tab-resumo');
+  const flash = document.getElementById('tab-flashcards');
+  const showResumo = name === 'resumo';
+  resumo.classList.toggle('hidden', !showResumo);
+  flash.classList.toggle('hidden', showResumo);
+  [resumo, flash].forEach(el => {
+    el.classList.add('panel-enter');
+    requestAnimationFrame(() => el.classList.remove('panel-enter'));
+  });
   document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === name));
 }
@@ -1023,6 +2018,10 @@ function initPointerGlow() {
 document.addEventListener('DOMContentLoaded', () => {
   initRevealAnimations();
   initPointerGlow();
+  renderHistory();
+  renderContinueSection();
+  maybeShowOnboarding();
+  showTab('resumo');
 });
 
 </script>
