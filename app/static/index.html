@@ -41,10 +41,10 @@ body {
 
 .main { display: flex; flex-direction: column; min-width: 0; }
 .top-header {
-  background: var(--dark); color: var(--dark-text);
-  padding: 10px 40px;
-  display: grid; grid-template-columns: 1fr auto 1fr;
-  align-items: center; position: relative;
+  background: var(--dark);
+  min-height: 64px;
+  padding: 0 40px;
+  position: relative;
 }
 .top-header::after {
   content: ''; position: absolute;
@@ -53,23 +53,6 @@ body {
   -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 48' preserveAspectRatio='none'><path d='M0,0 L1920,0 L1920,4 C1440,60 480,-28 0,32 Z' fill='black'/></svg>") no-repeat center / 100% 100%;
           mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 48' preserveAspectRatio='none'><path d='M0,0 L1920,0 L1920,4 C1440,60 480,-28 0,32 Z' fill='black'/></svg>") no-repeat center / 100% 100%;
 }
-.brand { display: flex; align-items: center; gap: 12px; justify-self: center; }
-.brand-mark {
-  width: 40px; height: 40px; border-radius: 10px;
-  background: radial-gradient(circle at 30% 30%, #fff 0 2px, transparent 3px),
-              radial-gradient(circle at 70% 55%, #fff 0 2px, transparent 3px),
-              linear-gradient(135deg, #3A3358, #5A4780);
-  border: 1px solid rgba(255,255,255,.1);
-  position: relative; overflow: hidden;
-}
-.brand-mark::after {
-  content: ''; position: absolute; inset: 6px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(159,108,255,.6), transparent 60%);
-}
-.brand-name { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; color: #fff; }
-.brand-tag { font-size: 9.5px; letter-spacing: 2px; color: #9F6CFF; font-weight: 600; margin-top: 2px; }
-.user-greet { justify-self: end; color: var(--dark-text-dim); font-size: 13px; }
-.user-greet strong { color: var(--dark-text); font-weight: 600; }
 
 .page-wrap {
   padding: 28px 40px 60px;
@@ -322,8 +305,7 @@ body {
 
 @media (max-width: 900px) {
   .top-header { padding: 10px 20px; }
-  .user-greet { font-size: 11px; }
-  .page-wrap { padding: 20px 16px 40px; }
+    .page-wrap { padding: 20px 16px 40px; }
   .page-title { font-size: 22px; }
   .hero { padding: 28px 22px; }
   .hero-grid { grid-template-columns: 1fr; gap: 24px; }
@@ -352,17 +334,7 @@ body {
 
 <div class="app">
   <div class="main">
-    <header class="top-header">
-      <div></div>
-      <div class="brand">
-        <div class="brand-mark"></div>
-        <div>
-          <div class="brand-name">Anamnes.IA</div>
-          <div class="brand-tag">SIMULE · PRATIQUE · EVOLUA</div>
-        </div>
-      </div>
-      <div class="user-greet">Olá, <strong>Juan</strong></div>
-    </header>
+    <header class="top-header" aria-hidden="true"></header>
 
     <div class="page-wrap">
       <div class="page-head">
