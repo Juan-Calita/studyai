@@ -78,9 +78,7 @@ body {
   flex: 1; position: relative; z-index: 1;
 }
 
-.page-head {
-  margin-bottom: 18px; padding: 0 6px;
-}
+.page-head { margin-bottom: 18px; padding: 0 6px; }
 .crumb {
   font-size: 11px; letter-spacing: 1.8px;
   color: var(--primary); font-weight: 700;
@@ -242,6 +240,86 @@ body {
 }
 .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 14px rgba(121,66,249,.25); }
 
+/* POPUP NAMORO */
+.popup-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; animation: fadeIn 0.3s;
+}
+.popup-box {
+  background: linear-gradient(135deg, #1a1f2e, #0c0f1a);
+  border: 2px solid rgba(236,72,153,0.3);
+  border-radius: 24px; padding: 40px 32px;
+  text-align: center; max-width: 420px; width: 90%;
+  box-shadow: 0 20px 60px rgba(236,72,153,0.3);
+  animation: popIn 0.4s;
+}
+.popup-emoji { font-size: 60px; margin-bottom: 12px; animation: bounce 1s infinite; }
+.popup-title { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.popup-sub { font-size: 14px; color: #94a3b8; margin-bottom: 24px; }
+.popup-buttons {
+  display: flex; gap: 14px; justify-content: center;
+  position: relative; min-height: 52px; align-items: center;
+}
+.popup-btn {
+  padding: 14px 36px; border-radius: 12px;
+  font-size: 16px; font-weight: 700; cursor: pointer; border: none;
+  font-family: inherit; transition: transform 0.2s, box-shadow 0.2s;
+}
+.popup-btn-sim {
+  background: linear-gradient(135deg, #ec4899, #f43f5e);
+  color: #fff; box-shadow: 0 4px 20px rgba(236,72,153,0.4);
+}
+.popup-btn-sim:hover { transform: scale(1.1); }
+.popup-btn-nao {
+  background: rgba(255,255,255,0.08); color: #94a3b8;
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: left 0.3s ease, top 0.3s ease;
+}
+
+.victory {
+  position: fixed; inset: 0;
+  background: linear-gradient(135deg, #ec4899, #a855f7, #3b82f6);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 10000; animation: fadeIn 0.5s; overflow: hidden;
+}
+.victory-content { text-align: center; padding: 20px; z-index: 2; position: relative; }
+.victory-photo {
+  max-width: 90vw; max-height: 50vh; border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  border: 4px solid #fff; animation: popIn 0.6s;
+}
+.victory-title {
+  font-size: 38px; font-weight: 800; color: #fff;
+  margin-top: 24px; text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  animation: popIn 0.8s;
+}
+.victory-sub {
+  font-size: 18px; color: rgba(255,255,255,0.9);
+  margin-top: 8px; animation: popIn 1s;
+}
+.emoji-rain {
+  position: fixed; top: -50px; font-size: 40px;
+  animation: fall linear infinite;
+  z-index: 1; pointer-events: none;
+}
+.victory-close {
+  margin-top: 24px;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid #fff; color: #fff;
+  padding: 12px 28px; border-radius: 12px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  font-family: inherit; backdrop-filter: blur(10px);
+}
+.victory-close:hover { background: rgba(255,255,255,0.3); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
+
 @media (max-width: 900px) {
   .top-header { padding: 10px 20px; }
   .user-greet { font-size: 11px; }
@@ -260,6 +338,12 @@ body {
   .workspace { grid-template-columns: 1fr; }
   .panel { padding: 18px; }
   .cards-grid { grid-template-columns: 1fr; }
+  .popup-box { padding: 30px 20px; }
+  .popup-title { font-size: 22px; }
+  .popup-btn { padding: 12px 24px; font-size: 14px; }
+  .victory-title { font-size: 28px; }
+  .victory-sub { font-size: 15px; }
+  .emoji-rain { font-size: 30px; }
   input, button, textarea, select { font-size: 16px; }
 }
 </style>
@@ -370,9 +454,33 @@ body {
   </div>
 </div>
 
+<!-- POP-UP NAMORO -->
+<div id="popup-namoro" class="popup-overlay hidden">
+  <div class="popup-box">
+    <div class="popup-emoji">💕</div>
+    <div class="popup-title">Quer namorar comigo?</div>
+    <div class="popup-sub">Resposta importante antes do download 😌</div>
+    <div class="popup-buttons">
+      <button class="popup-btn popup-btn-sim" onclick="aceitarNamoro()">Sim 💖</button>
+      <button id="btn-nao" class="popup-btn popup-btn-nao" onmouseover="fugirNao()" ontouchstart="fugirNao(event)">Não</button>
+    </div>
+  </div>
+</div>
+
+<!-- TELA DE VITÓRIA -->
+<div id="victory" class="victory hidden">
+  <div class="victory-content">
+    <img src="/static/nos.jpg" alt="Nós" class="victory-photo">
+    <div class="victory-title">EU TE AMO! 💕</div>
+    <div class="victory-sub">Agora é oficial! 🥰</div>
+    <button class="victory-close" onclick="fecharVitoria()">Continuar ✨</button>
+  </div>
+</div>
+
 <script>
 const API = window.location.origin;
 let aulaData = null;
+let pendingDownloadUrl = null;
 
 function initWaveBars() {
   const wrap = document.getElementById('wave-bars');
@@ -532,10 +640,16 @@ function renderResult() {
   const act = document.getElementById('result-actions');
   act.innerHTML = '';
   if (aulaData.pdf_url) {
-    act.innerHTML += '<a href="' + API + aulaData.pdf_url + '" target="_blank" class="btn btn-dark">📄 Baixar PDF</a>';
+    const a = document.createElement('a');
+    a.href = '#'; a.className = 'btn btn-dark'; a.textContent = '📄 Baixar PDF';
+    a.onclick = (e) => interceptarDownload(e, API + aulaData.pdf_url);
+    act.appendChild(a);
   }
   if (aulaData.anki_url) {
-    act.innerHTML += '<a href="' + API + aulaData.anki_url + '" target="_blank" class="btn btn-dark">📦 Baixar Anki</a>';
+    const a = document.createElement('a');
+    a.href = '#'; a.className = 'btn btn-dark'; a.textContent = '📦 Baixar Anki';
+    a.onclick = (e) => interceptarDownload(e, API + aulaData.anki_url);
+    act.appendChild(a);
   }
 
   document.getElementById('summary-text').textContent = aulaData.resumo || '';
@@ -579,6 +693,53 @@ function showTab(name) {
   document.getElementById('tab-flashcards').classList.toggle('hidden', name !== 'flashcards');
   document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === name));
+}
+
+// POP-UP NAMORO
+function interceptarDownload(e, url) {
+  e.preventDefault();
+  pendingDownloadUrl = url;
+  document.getElementById('popup-namoro').classList.remove('hidden');
+}
+
+function fugirNao(e) {
+  if (e) e.preventDefault();
+  const btn = document.getElementById('btn-nao');
+  const maxX = window.innerWidth - btn.offsetWidth - 20;
+  const maxY = window.innerHeight - btn.offsetHeight - 20;
+  const novoX = Math.max(10, Math.random() * maxX);
+  const novoY = Math.max(10, Math.random() * maxY);
+  btn.style.position = 'fixed';
+  btn.style.left = novoX + 'px';
+  btn.style.top = novoY + 'px';
+}
+
+function aceitarNamoro() {
+  document.getElementById('popup-namoro').classList.add('hidden');
+  document.getElementById('victory').classList.remove('hidden');
+  criarChuvaEmojis();
+}
+
+function criarChuvaEmojis() {
+  const emojis = ['🎉', '🎊', '💕', '💖', '💗', '💘', '💝', '🌸', '🌷', '🌹', '✨', '⭐', '🥳', '🎈', '🎁', '💐'];
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.className = 'emoji-rain';
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.animationDuration = (2 + Math.random() * 3) + 's';
+    el.style.animationDelay = Math.random() * 2 + 's';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 6000);
+  }
+}
+
+function fecharVitoria() {
+  document.getElementById('victory').classList.add('hidden');
+  if (pendingDownloadUrl) {
+    window.open(pendingDownloadUrl, '_blank');
+    pendingDownloadUrl = null;
+  }
 }
 </script>
 </body>
