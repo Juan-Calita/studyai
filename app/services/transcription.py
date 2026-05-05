@@ -1,4 +1,4 @@
-"""Transcrição agressiva: comprime forte, divide pequeno, paraleliza muito."""
+"""Transcricao agressiva: comprime forte, divide pequeno, paraleliza muito."""
 from __future__ import annotations
 import os
 import shutil
@@ -14,14 +14,13 @@ from app.config import settings
 
 genai.configure(api_key=settings.gemini_api_key)
 
-# Configuração agressiva
-CHUNK_DURATION_SEC = 8 * 60       # 8 min por chunk (era 12)
-SIZE_THRESHOLD_BYTES = 8 * 1024 * 1024   # 8 MB → divide
-DURATION_THRESHOLD_SEC = 9 * 60          # > 9 min → divide
+CHUNK_DURATION_SEC = 8 * 60
+SIZE_THRESHOLD_BYTES = 8 * 1024 * 1024
+DURATION_THRESHOLD_SEC = 9 * 60
 MAX_PARALLEL_WORKERS = 4
 MAX_RETRIES = 2
 MODEL_NAME = "gemini-flash-latest"
-CHUNK_TIMEOUT_SEC = 90  # timeout por chunk (era 240)
+CHUNK_TIMEOUT_SEC = 90
 
 
 def _get_ffmpeg_exe() -> Optional[str]:
@@ -29,23 +28,21 @@ def _get_ffmpeg_exe() -> Optional[str]:
         import imageio_ffmpeg
         return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception as e:
-        print(f"[Transcrição] imageio-ffmpeg falhou: {e}")
+        print(f"[Transcricao] imageio-ffmpeg falhou: {e}")
         return shutil.which("ffmpeg")
 
 
-def _comprimir_agressivo(ffmpeg_exe: str, input_path: str, output_path: str) -> bool:
-    """Comprime brutalmente: mono, 12kHz, Opus 24kbps. Áudio de fala fica perfeito.
-    Reduz arquivo de ~50MB pra ~5MB.
-    """
+def _comprimir_agressivo(ffmpeg_exe: str, input_path: str, output_path: str) -> Optional[str]:
+    """Comprime: mono, 12kHz, Opus 24kbps. Retorna caminho do arquivo comprimido ou None."""
     cmd = [
         ffmpeg_exe, "-y", "-loglevel", "error",
         "-i", input_path,
-        "-vn",                  # remove vídeo
-        "-ac", "1",             # mono
-        "-ar", "12000",         # 12kHz (fala humana cobre até ~4kHz)
-        "-c:a", "libopus",      # opus = melhor compressão pra fala
-        "-b:a", "24k",          # 24kbps - super baixo mas legível
-        "-application", "voip", # otimizado pra fala
+        "-vn",
+        "-ac", "1",
+        "-ar", "12000",
+        "-c:a", "libopus",
+        "-b:a", "24k",
+        "-application", "voip",
         output_path,
     ]
     try:
@@ -53,25 +50,27 @@ def _comprimir_agressivo(ffmpeg_exe: str, input_path: str, output_path: str) -> 
         if proc.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             orig_mb = os.path.getsize(input_path) / 1024 / 1024
             new_mb = os.path.getsize(output_path) / 1024 / 1024
-            print(f"[Transcrição] Comprimido: {orig_mb:.1f}MB → {new_mb:.1f}MB ({100*(1-new_mb/orig_mb):.0f}% menor)")
-            return True
-        # Fallback: tenta com AAC se opus falhar
+            print(f"[Transcricao] Comprimido: {orig_mb:.1f}MB -> {new_mb:.1f}MB")
+            return output_path
+
+        aac_path = output_path.rsplit(".", 1)[0] + ".m4a"
         cmd_aac = [
             ffmpeg_exe, "-y", "-loglevel", "error",
             "-i", input_path,
             "-vn", "-ac", "1", "-ar", "12000",
             "-c:a", "aac", "-b:a", "32k",
-            output_path.replace(".opus", ".m4a"),
+            aac_path,
         ]
         proc = subprocess.run(cmd_aac, capture_output=True, text=True, timeout=300)
-        if proc.returncode == 0:
-            print(f"[Transcrição] Comprimido com AAC fallback")
-            return True
-        print(f"[Transcrição] Compressão falhou: {proc.stderr[-300:]}")
-        return False
+        if proc.returncode == 0 and os.path.exists(aac_path) and os.path.getsize(aac_path) > 0:
+            print(f"[Transcricao] Comprimido com AAC fallback")
+            return aac_path
+
+        print(f"[Transcricao] Compressao falhou: {proc.stderr[-300:]}")
+        return None
     except Exception as e:
-        print(f"[Transcrição] Erro na compressão: {e}")
-        return False
+        print(f"[Transcricao] Erro na compressao: {e}")
+        return None
 
 
 def _probe_duration(ffmpeg_exe: str, audio_path: str) -> Optional[float]:
@@ -87,7 +86,7 @@ def _probe_duration(ffmpeg_exe: str, audio_path: str) -> Optional[float]:
                 h, m, s = parte.split(":")
                 return int(h) * 3600 + int(m) * 60 + float(s)
     except Exception as e:
-        print(f"[Transcrição] Probe falhou: {e}")
+        print(f"[Transcricao] Probe falhou: {e}")
     return None
 
 
@@ -107,24 +106,117 @@ def _split_audio(ffmpeg_exe, audio_path, out_dir, duration_sec) -> List[Tuple[in
             out_path,
         ]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+
         if proc.returncode != 0 or not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
-            # Fallback AAC
-            out_path = out_path.replace(".opus", ".m4a")
-            cmd[-2:-1] = ["aac"]; cmd[-3:-2] = ["32k"]
-            cmd = [c for c in cmd if c != "voip" and c != "-application"]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-            if proc.returncode != 0 or not os.path.exists(out_path):
+            out_path = str(out_dir / f"chunk_{idx:03d}.m4a")
+            cmd_aac = [
+                ffmpeg_exe, "-y", "-loglevel", "error",
+                "-ss", f"{start:.3f}", "-i", audio_path,
+                "-t", f"{CHUNK_DURATION_SEC + 2}",
+                "-vn", "-ac", "1", "-ar", "12000",
+                "-c:a", "aac", "-b:a", "32k",
+                out_path,
+            ]
+            proc = subprocess.run(cmd_aac, capture_output=True, text=True, timeout=180)
+            if proc.returncode != 0 or not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
                 break
+
         chunks.append((idx, out_path))
         idx += 1
         start += CHUNK_DURATION_SEC
     return chunks
 
 
-_PROMPT = "Transcreva este áudio em português. Retorne APENAS o texto, sem comentários, sem timestamps."
+_PROMPT = "Transcreva este audio em portugues. Retorne APENAS o texto, sem comentarios, sem timestamps."
 
 
 def _transcribe_single(audio_path: str, label: str = "") -> str:
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         audio_file = None
+        try:
+            audio_file = genai.upload_file(path=audio_path)
+            model = genai.GenerativeModel(MODEL_NAME)
+            response = model.generate_content(
+                [_PROMPT, audio_file],
+                request_options={"timeout": CHUNK_TIMEOUT_SEC},
+            )
+            text = (response.text or "").strip()
+            print(f"[Transcricao] {label} ok ({len(text)} chars)")
+            return text
+        except Exception as e:
+            last_err = e
+            print(f"[Transcricao] {label} tentativa {attempt}: {e}")
+            time.sleep(2 ** attempt)
+        finally:
+            if audio_file is not None:
+                try:
+                    audio_file.delete()
+                except Exception:
+                    pass
+    print(f"[Transcricao] {label} falhou definitivamente: {last_err}")
+    return ""
+
+
+def transcrever(audio_path: str) -> str:
+    """Funcao principal chamada pelo pipeline."""
+    ffmpeg_exe = _get_ffmpeg_exe()
+
+    if ffmpeg_exe is None:
+        print("[Transcricao] ffmpeg indisponivel - upload unico.")
+        return _transcribe_single(audio_path, label="full")
+
+    with tempfile.TemporaryDirectory(prefix="studyai_comp_") as comp_dir:
+        compressed_target = str(Path(comp_dir) / "compressed.opus")
+        compressed = _comprimir_agressivo(ffmpeg_exe, audio_path, compressed_target)
+
+        if compressed and os.path.exists(compressed):
+            audio_to_use = compressed
+        else:
+            print("[Transcricao] Compressao falhou, usando original")
+            audio_to_use = audio_path
+
+        size_bytes = os.path.getsize(audio_to_use)
+        duration = _probe_duration(ffmpeg_exe, audio_to_use)
+
+        precisa_dividir = (
+            size_bytes > SIZE_THRESHOLD_BYTES
+            or (duration and duration > DURATION_THRESHOLD_SEC)
+        )
+
+        if not precisa_dividir:
+            dur_min = duration / 60 if duration else 0
+            print(f"[Transcricao] Cabe ({size_bytes/1024/1024:.1f}MB, {dur_min:.1f}min) - upload unico.")
+            return _transcribe_single(audio_to_use, label="full")
+
+        if not duration:
+            duration = size_bytes * 8 / 24_000
+
+        print(f"[Transcricao] Dividindo {duration/60:.1f}min em chunks de {CHUNK_DURATION_SEC/60:.0f}min...")
+
+        with tempfile.TemporaryDirectory(prefix="studyai_chunks_") as tmpdir:
+            try:
+                chunks = _split_audio(ffmpeg_exe, audio_to_use, Path(tmpdir), duration)
+            except Exception as e:
+                print(f"[Transcricao] Split falhou ({e}) - fallback unico.")
+                return _transcribe_single(audio_to_use, label="fallback")
+
+            if not chunks:
+                print("[Transcricao] Sem chunks - fallback unico.")
+                return _transcribe_single(audio_to_use, label="fallback")
+
+            print(f"[Transcricao] {len(chunks)} chunks. Paralelizando ({MAX_PARALLEL_WORKERS} workers)...")
+            resultados = {}
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as ex:
+                futuros = {ex.submit(_transcribe_single, p, f"c{i:02d}"): i for i, p in chunks}
+                for fut in as_completed(futuros):
+                    try:
+                        resultados[futuros[fut]] = fut.result(timeout=CHUNK_TIMEOUT_SEC + 30)
+                    except Exception as e:
+                        print(f"[Transcricao] chunk {futuros[fut]} falhou: {e}")
+                        resultados[futuros[fut]] = ""
+
+            texto = "\n\n".join(resultados[i] for i in sorted(resultados) if resultados[i]).strip()
+            if not texto:
+                raise RuntimeError("Todos os chunks falharam. Tente novamente em alguns minutos.")
+            return texto
