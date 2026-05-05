@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutTimeout
 from app.database import get_conn
 from app.services import transcription, llm, pdf_generator, anki_export
 
@@ -10,20 +11,18 @@ def _update_status(conn, aula_id, **fields):
 
 
 def _sanitizar_flashcards(cards):
-    """Aceita vários formatos: {pergunta/resposta}, {question/answer}, {front/back}, etc."""
     resultado = []
     if not isinstance(cards, list):
         return resultado
     for c in cards:
         if not isinstance(c, dict):
             continue
-        # Tenta várias chaves possíveis
         pergunta = c.get('pergunta') or c.get('question') or c.get('front') or c.get('q')
         resposta = c.get('resposta') or c.get('answer') or c.get('back') or c.get('a')
         if pergunta and resposta:
             resultado.append({
-                'pergunta': str(pergunta).strip(),
-                'resposta': str(resposta).strip(),
+                'pergunta': str(pergunta).strip()[:500],
+                'resposta': str(resposta).strip()[:1000],
             })
     return resultado
 
@@ -35,73 +34,99 @@ def processar_aula(aula_id: int):
         if not row:
             return
 
-        # 1. Transcrição
+        # === ETAPA 1: Transcrição ===
         print(f"[Pipeline] Aula {aula_id}: transcrevendo...")
         _update_status(conn, aula_id, status="transcrevendo")
         texto_bruto = transcription.transcrever(row["audio_path"])
+        if not texto_bruto or len(texto_bruto.strip()) < 50:
+            raise RuntimeError("Transcrição vazia ou muito curta. O áudio pode estar corrompido.")
 
-        # 2. Salva transcrição parcial
+        # Salva transcrição bruta imediatamente (resultado parcial pro usuário)
         _update_status(conn, aula_id, status="estruturando",
                        transcricao=texto_bruto,
-                       resumo="Processando conteúdo expandido...")
+                       resumo="Estruturando conteúdo expandido...")
 
-        # 3. Chamada única unificada
-        print(f"[Pipeline] Aula {aula_id}: processando tudo...")
+        # === ETAPA 2: Estrutura + Flashcards EM PARALELO ===
+        print(f"[Pipeline] Aula {aula_id}: rodando estrutura + flashcards em paralelo...")
         _update_status(conn, aula_id, status="gerando_conteudo")
-        dados = llm.processar_tudo(texto_bruto)
 
-        titulo = dados.get('titulo_sugerido') or row["titulo"]
-        flashcards = _sanitizar_flashcards(dados.get('flashcards', []))
+        estrutura = None
+        flashcards_raw = []
 
-        # Fallback se vieram poucos flashcards
-        if len(flashcards) < 5:
-            print(f"[Pipeline] Poucos flashcards ({len(flashcards)}), tentando regenerar...")
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            fut_estrutura = ex.submit(llm.gerar_estrutura, texto_bruto)
+            fut_flashcards = ex.submit(llm.gerar_flashcards, texto_bruto)
             try:
-                from app.services.llm import _call_with_retry, _parse_json
-                resp = _call_with_retry(f"""Crie 20 flashcards da aula abaixo.
-Regras: perguntas específicas, respostas de 1-3 frases.
-
-Responda SÓ com JSON válido neste formato EXATO:
-[{{"pergunta": "...", "resposta": "..."}}, {{"pergunta": "...", "resposta": "..."}}]
-
-Aula:
-{dados.get('transcricao_destrinchada', texto_bruto)[:8000]}""")
-                novos = _sanitizar_flashcards(_parse_json(resp.text))
-                if len(novos) > len(flashcards):
-                    flashcards = novos
+                estrutura = fut_estrutura.result(timeout=240)
             except Exception as e:
-                print(f"[Pipeline] Fallback de flashcards falhou: {e}")
+                print(f"[Pipeline] Estrutura falhou: {e}")
+            try:
+                flashcards_raw = fut_flashcards.result(timeout=180)
+            except Exception as e:
+                print(f"[Pipeline] Flashcards falharam: {e}")
 
-        # Garante pelo menos 1 flashcard
+        # Fallback: se estrutura falhou, usa transcrição bruta
+        if not estrutura:
+            estrutura = {
+                'titulo_sugerido': row["titulo"],
+                'resumo_expandido': 'Não foi possível gerar resumo expandido. Use a transcrição abaixo como base.',
+                'transcricao_destrinchada': texto_bruto,
+            }
+
+        titulo = estrutura.get('titulo_sugerido') or row["titulo"]
+        resumo = estrutura.get('resumo_expandido', '')
+        transcricao_estruturada = estrutura.get('transcricao_destrinchada', texto_bruto)
+        flashcards = _sanitizar_flashcards(flashcards_raw)
+
+        # Garante pelo menos um flashcard mínimo
         if not flashcards:
-            flashcards = [{"pergunta": "Qual é o tema da aula?",
-                          "resposta": titulo}]
+            flashcards = [{
+                "pergunta": f"Qual é o tema central de '{titulo}'?",
+                "resposta": resumo[:300] if resumo else "Veja a transcrição da aula."
+            }]
 
-        # 4. Salva dados parciais
+        # Salva conteúdo principal
         _update_status(conn, aula_id, status="gerando_arquivos",
-                       titulo=titulo,
-                       resumo=dados.get('resumo_expandido', ''),
-                       transcricao=dados.get('transcricao_destrinchada', texto_bruto))
+                       titulo=titulo, resumo=resumo, transcricao=transcricao_estruturada)
 
         for c in flashcards:
             conn.execute("INSERT INTO flashcards (aula_id, pergunta, resposta) VALUES (?, ?, ?)",
                          (aula_id, c["pergunta"], c["resposta"]))
         conn.commit()
 
-        # 5. PDF
+        # === ETAPA 3 (opcional): Extras (guia + palácio) ===
+        guia = ''
+        palacio = ''
+        try:
+            print(f"[Pipeline] Aula {aula_id}: gerando extras...")
+            extras = llm.gerar_extras(texto_bruto)
+            guia = extras.get('guia_de_estudos', '')
+            palacio = extras.get('palacio_mental', '')
+        except Exception as e:
+            print(f"[Pipeline] Extras falharam (sem problemas, prossegue): {e}")
+
+        # === ETAPA 4: PDF ===
         estruturado_pdf = {
-            'guia_de_estudos': dados.get('guia_de_estudos', ''),
-            'resumo_expandido': dados.get('resumo_expandido', ''),
-            'palacio_mental': dados.get('palacio_mental', ''),
-            'transcricao_estruturada': dados.get('transcricao_destrinchada', texto_bruto),
+            'guia_de_estudos': guia,
+            'resumo_expandido': resumo,
+            'palacio_mental': palacio,
+            'transcricao_estruturada': transcricao_estruturada,
         }
 
         print(f"[Pipeline] Aula {aula_id}: gerando PDF...")
-        pdf_path = pdf_generator.gerar_pdf(aula_id, titulo, texto_bruto, estruturado_pdf, flashcards)
+        try:
+            pdf_path = pdf_generator.gerar_pdf(aula_id, titulo, texto_bruto, estruturado_pdf, flashcards)
+        except Exception as e:
+            print(f"[Pipeline] PDF falhou: {e}")
+            pdf_path = None
 
-        # 6. Anki
+        # === ETAPA 5: Anki ===
         print(f"[Pipeline] Aula {aula_id}: gerando Anki...")
-        anki_path = anki_export.gerar_anki(aula_id, titulo, flashcards)
+        try:
+            anki_path = anki_export.gerar_anki(aula_id, titulo, flashcards)
+        except Exception as e:
+            print(f"[Pipeline] Anki falhou: {e}")
+            anki_path = None
 
         _update_status(conn, aula_id, status="pronto",
                        pdf_path=pdf_path, anki_path=anki_path)
@@ -111,8 +136,10 @@ Aula:
         import traceback
         print(f"[Pipeline] Aula {aula_id}: ❌ erro: {e}")
         print(traceback.format_exc())
-        conn.execute("UPDATE aulas SET status='erro', erro=? WHERE id=?", (str(e), aula_id))
-        conn.commit()
-        raise
+        try:
+            conn.execute("UPDATE aulas SET status='erro', erro=? WHERE id=?", (str(e)[:500], aula_id))
+            conn.commit()
+        except Exception:
+            pass
     finally:
         conn.close()
