@@ -11,12 +11,10 @@ _model = genai.GenerativeModel("gemini-flash-latest")
 
 def _parse_json(texto: str):
     """Extrai JSON robustamente, mesmo com lixo antes/depois."""
-    # Tenta achar JSON em ```json ... ```
     match = re.search(r'```(?:json)?\s*(.*?)\s*```', texto, re.DOTALL)
     if match:
         texto = match.group(1)
     else:
-        # Tenta achar primeiro { ou [ até último } ou ]
         first = min(
             (texto.find(c) for c in '{[' if texto.find(c) >= 0),
             default=-1
@@ -31,7 +29,6 @@ def _parse_json(texto: str):
     try:
         return json.loads(texto.strip(), strict=False)
     except json.JSONDecodeError as e:
-        # Tenta reparar JSON cortado: fechar chaves/colchetes que faltam
         texto = texto.strip()
         opens = texto.count('{') - texto.count('}')
         opens_arr = texto.count('[') - texto.count(']')
@@ -65,33 +62,33 @@ def _call_with_retry(prompt, retries=2, timeout_sec=180):
 
 
 def gerar_estrutura(transcricao_bruta: str) -> dict:
-    """CHAMADA A: título + resumo + transcrição estruturada (rápida)."""
-    prompt = f"""Você é um assistente pedagógico. Analise a transcrição da aula e gere JSON com:
+    """CHAMADA A: titulo + resumo + transcricao estruturada."""
+    prompt = f"""Voce e um assistente pedagogico. Analise a transcricao da aula e gere JSON com:
 
-1. **titulo_sugerido**: título acadêmico curto (max 80 chars)
-2. **resumo_expandido**: resumo didático e detalhado em ~1500 palavras, com ## (subseções) e ### (detalhes). Cubra TODOS os pontos importantes da aula.
-3. **transcricao_destrinchada**: conteúdo reescrito sem muletas, em markdown (# ## ###). Sem caracteres ornamentais.
+1. **titulo_sugerido**: titulo academico curto (max 80 chars)
+2. **resumo_expandido**: resumo didatico e detalhado em ~1500 palavras, com ## (subsecoes) e ### (detalhes). Cubra TODOS os pontos importantes da aula.
+3. **transcricao_destrinchada**: conteudo reescrito sem muletas, em markdown (# ## ###). Sem caracteres ornamentais.
 
-Responda APENAS com JSON válido:
+Responda APENAS com JSON valido:
 {{"titulo_sugerido":"...","resumo_expandido":"...","transcricao_destrinchada":"..."}}
 
-Transcrição:
+Transcricao:
 {transcricao_bruta}"""
     resp = _call_with_retry(prompt, timeout_sec=180)
     return _parse_json(resp.text)
 
 
 def gerar_flashcards(transcricao_bruta: str) -> list:
-    """CHAMADA B: 25 flashcards (rápida, em paralelo com a A)."""
+    """CHAMADA B: 25 flashcards."""
     prompt = f"""Crie 25 flashcards de estudo a partir da aula abaixo.
 
 Regras:
-- Perguntas claras e específicas (evite perguntas genéricas tipo "o que é X?")
-- Respostas concisas (1-3 frases, máximo 60 palavras)
-- Foque em conceitos, definições, processos e aplicações práticas
-- Distribua os cards por todo o conteúdo da aula
+- Perguntas claras e especificas (evite perguntas genericas tipo "o que e X?")
+- Respostas concisas (1-3 frases, maximo 60 palavras)
+- Foque em conceitos, definicoes, processos e aplicacoes praticas
+- Distribua os cards por todo o conteudo da aula
 
-Responda APENAS com JSON válido neste formato exato:
+Responda APENAS com JSON valido neste formato exato:
 [{{"pergunta":"...","resposta":"..."}},{{"pergunta":"...","resposta":"..."}}]
 
 Aula:
@@ -101,18 +98,78 @@ Aula:
 
 
 def gerar_extras(transcricao_bruta: str) -> dict:
-    """CHAMADA C (opcional): guia + palácio mental.
-    Roda só se A e B funcionaram. Se falhar, ignora.
-    """
-    prompt = f"""Crie material complementar para a aula abaixo:
+    """CHAMADA C (opcional): guia de estudos completo (programa + bibliografia) + palacio mental."""
+    prompt = f"""Analise o tema da aula abaixo e gere material complementar de estudo aprofundado.
 
-1. **guia_de_estudos**: passo-a-passo prático em ~400 palavras, com metas objetivas
-2. **palacio_mental**: narrativa de memorização em ~600 palavras, usando metáfora de jornada por um edifício (cômodos, salas, detalhes). Inclua frases-gatilho.
+VOCE DEVE GERAR DOIS CAMPOS:
 
-Responda APENAS com JSON válido:
+==========================================
+CAMPO 1: guia_de_estudos
+==========================================
+O guia_de_estudos deve ter DUAS PARTES bem separadas em markdown:
+
+## PARTE 1 - CONTEUDO PROGRAMATICO COMPLETO
+
+Crie um conteudo programatico completo para aprender o tema da aula, do nivel iniciante ao avancado.
+Organize por modulos. Para cada modulo:
+- Liste os topicos mais importantes em ordem de prioridade
+- Destaque quais sao os fundamentos essenciais que todo iniciante deve dominar primeiro
+
+Use esta estrutura para CADA modulo:
+
+### Modulo 1: [Nome do modulo] (Nivel: Iniciante)
+**Fundamentos essenciais (dominar primeiro):**
+- Topico 1 (mais prioritario)
+- Topico 2
+- Topico 3
+
+**Topicos complementares:**
+- Topico 4
+- Topico 5
+
+### Modulo 2: [Nome do modulo] (Nivel: Intermediario)
+[mesma estrutura]
+
+### Modulo 3: [Nome do modulo] (Nivel: Avancado)
+[mesma estrutura]
+
+Gere de 4 a 6 modulos no total, progredindo de iniciante a avancado.
+
+## PARTE 2 - BIBLIOGRAFIA RECOMENDADA POR MODULO
+
+Para CADA modulo da Parte 1, indique de 1 a 5 livros ou artigos cientificos confiaveis.
+Prefira materiais em portugues, mas aceite ingles se for referencia fundamental na area.
+Para cada indicacao, explique em 2 linhas por que ela e relevante para quem esta comecando.
+
+Use esta estrutura:
+
+### Bibliografia - Modulo 1: [Nome]
+1. **[Titulo do livro/artigo]** - [Autor(es)], [Ano]
+   *Por que ler:* [explicacao em 2 linhas sobre relevancia para iniciantes]
+
+2. **[Titulo do livro/artigo]** - [Autor(es)], [Ano]
+   *Por que ler:* [explicacao em 2 linhas]
+
+### Bibliografia - Modulo 2: [Nome]
+[mesma estrutura, 1 a 5 indicacoes]
+
+[continuar para todos os modulos]
+
+==========================================
+CAMPO 2: palacio_mental
+==========================================
+Narrativa de memorizacao em ~600 palavras, usando metafora de jornada por um edificio (comodos, salas, detalhes). Inclua frases-gatilho de memorizacao.
+
+==========================================
+RESPOSTA
+==========================================
+Responda APENAS com JSON valido neste formato exato:
 {{"guia_de_estudos":"...","palacio_mental":"..."}}
+
+Use \\n para quebras de linha dentro das strings.
+NAO use aspas duplas dentro do conteudo (use aspas simples se precisar).
 
 Aula:
 {transcricao_bruta[:8000]}"""
-    resp = _call_with_retry(prompt, timeout_sec=120, retries=1)
+    resp = _call_with_retry(prompt, timeout_sec=180, retries=1)
     return _parse_json(resp.text)
