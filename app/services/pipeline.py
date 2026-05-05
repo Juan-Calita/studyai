@@ -1,5 +1,4 @@
-"""Pipeline sequencial com falha isolada por bloco.
-Se um bloco falhar, os outros continuam e o usuario sempre recebe algo."""
+"""Pipeline sequencial com falha isolada por bloco."""
 from app.database import get_conn
 from app.services import transcription, llm, pdf_generator, anki_export
 
@@ -12,8 +11,9 @@ def _update_status(conn, aula_id, **fields):
 
 
 def _sanitizar_flashcards(cards):
-    """Aceita varios formatos de chaves."""
+    """Aceita varios formatos de chaves e remove duplicatas."""
     resultado = []
+    perguntas_vistas = set()
     if not isinstance(cards, list):
         return resultado
     for c in cards:
@@ -21,11 +21,19 @@ def _sanitizar_flashcards(cards):
             continue
         pergunta = c.get('pergunta') or c.get('question') or c.get('front') or c.get('q')
         resposta = c.get('resposta') or c.get('answer') or c.get('back') or c.get('a')
-        if pergunta and resposta:
-            resultado.append({
-                'pergunta': str(pergunta).strip()[:500],
-                'resposta': str(resposta).strip()[:1000],
-            })
+        if not pergunta or not resposta:
+            continue
+        p_limpo = str(pergunta).strip()[:500]
+        r_limpo = str(resposta).strip()[:1000]
+        # Evita duplicata exata
+        chave = p_limpo.lower()
+        if chave in perguntas_vistas:
+            continue
+        perguntas_vistas.add(chave)
+        resultado.append({
+            'pergunta': p_limpo,
+            'resposta': r_limpo,
+        })
     return resultado
 
 
@@ -37,22 +45,21 @@ def processar_aula(aula_id: int):
             return
 
         # ====================================================
-        # ETAPA 1: TRANSCRICAO (obrigatoria - se falhar aborta)
+        # ETAPA 1: TRANSCRICAO (obrigatoria)
         # ====================================================
         print(f"[Pipeline] Aula {aula_id}: transcrevendo...")
         _update_status(conn, aula_id, status="transcrevendo")
         texto_bruto = transcription.transcrever(row["audio_path"])
 
         if not texto_bruto or len(texto_bruto.strip()) < 50:
-            raise RuntimeError("Transcricao vazia ou muito curta. Audio pode estar corrompido.")
+            raise RuntimeError("Transcricao vazia. Audio pode estar corrompido.")
 
-        # Salva transcricao bruta imediatamente
         _update_status(conn, aula_id, status="estruturando",
                        transcricao=texto_bruto,
                        resumo="Processando conteudo expandido...")
 
         # ====================================================
-        # ETAPA 2: RESUMO + TITULO + TRANSCRICAO ESTRUTURADA
+        # ETAPA 2: RESUMO
         # ====================================================
         print(f"[Pipeline] Aula {aula_id}: bloco 1/4 - resumo...")
         _update_status(conn, aula_id, status="gerando_resumo")
@@ -67,8 +74,8 @@ def processar_aula(aula_id: int):
             transcricao_estruturada = resumo_data.get('transcricao_destrinchada', texto_bruto)
             print(f"[Pipeline] Resumo OK ({len(resumo)} chars)")
         except Exception as e:
-            print(f"[Pipeline] Resumo falhou (segue sem): {e}")
-            resumo = "Nao foi possivel gerar resumo expandido. Use a transcricao abaixo."
+            print(f"[Pipeline] Resumo falhou: {e}")
+            resumo = "Nao foi possivel gerar resumo expandido."
 
         _update_status(conn, aula_id, titulo=titulo, resumo=resumo,
                        transcricao=transcricao_estruturada)
@@ -76,17 +83,17 @@ def processar_aula(aula_id: int):
         # ====================================================
         # ETAPA 3: PALACIO MENTAL
         # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: bloco 2/4 - palacio mental...")
+        print(f"[Pipeline] Aula {aula_id}: bloco 2/4 - palacio...")
         _update_status(conn, aula_id, status="gerando_palacio")
         palacio = ""
         try:
             palacio = llm.gerar_palacio_mental(texto_bruto, titulo)
             print(f"[Pipeline] Palacio OK ({len(palacio)} chars)")
         except Exception as e:
-            print(f"[Pipeline] Palacio falhou (segue sem): {e}")
+            print(f"[Pipeline] Palacio falhou: {e}")
 
         # ====================================================
-        # ETAPA 4: FLASHCARDS
+        # ETAPA 4: FLASHCARDS (com retry interno na llm.py)
         # ====================================================
         print(f"[Pipeline] Aula {aula_id}: bloco 3/4 - flashcards...")
         _update_status(conn, aula_id, status="gerando_flashcards")
@@ -94,18 +101,33 @@ def processar_aula(aula_id: int):
         try:
             cards_raw = llm.gerar_flashcards(texto_bruto)
             flashcards = _sanitizar_flashcards(cards_raw)
-            print(f"[Pipeline] Flashcards OK ({len(flashcards)} cards)")
+            print(f"[Pipeline] Flashcards apos sanitizar: {len(flashcards)} cards")
         except Exception as e:
-            print(f"[Pipeline] Flashcards falharam (segue sem): {e}")
+            print(f"[Pipeline] Flashcards falharam: {e}")
 
-        # Garante pelo menos um flashcard pra UI nao quebrar
+        # Se VERDADEIRAMENTE nao veio nada, tenta uma vez mais com prompt minimo
+        if len(flashcards) < 5:
+            print(f"[Pipeline] So {len(flashcards)} cards, fazendo retry final...")
+            try:
+                cards_extra = llm._gerar_flashcards_fallback(texto_bruto, 30)
+                cards_extra_san = _sanitizar_flashcards(cards_extra)
+                # Junta sem duplicar
+                perguntas_existentes = {c['pergunta'].lower() for c in flashcards}
+                for c in cards_extra_san:
+                    if c['pergunta'].lower() not in perguntas_existentes:
+                        flashcards.append(c)
+                print(f"[Pipeline] Apos retry: {len(flashcards)} cards")
+            except Exception as e:
+                print(f"[Pipeline] Retry final falhou: {e}")
+
+        # Garante minimo absoluto pra UI nao quebrar
         if not flashcards:
             flashcards = [{
                 "pergunta": f"Qual e o tema central de '{titulo}'?",
                 "resposta": resumo[:300] if resumo else "Veja a transcricao da aula."
             }]
 
-        # Salva flashcards no banco
+        # Salva todos no banco
         for c in flashcards:
             conn.execute(
                 "INSERT INTO flashcards (aula_id, pergunta, resposta) VALUES (?, ?, ?)",
@@ -114,19 +136,19 @@ def processar_aula(aula_id: int):
         conn.commit()
 
         # ====================================================
-        # ETAPA 5: GUIA DE ESTUDOS + BIBLIOGRAFIA
+        # ETAPA 5: GUIA + BIBLIOGRAFIA
         # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: bloco 4/4 - guia de estudos...")
+        print(f"[Pipeline] Aula {aula_id}: bloco 4/4 - guia...")
         _update_status(conn, aula_id, status="gerando_guia")
         guia = ""
         try:
             guia = llm.gerar_guia_completo(texto_bruto)
             print(f"[Pipeline] Guia OK ({len(guia)} chars)")
         except Exception as e:
-            print(f"[Pipeline] Guia falhou (segue sem): {e}")
+            print(f"[Pipeline] Guia falhou: {e}")
 
         # ====================================================
-        # ETAPA 6: PDF (consolida tudo que deu certo)
+        # ETAPA 6: PDF
         # ====================================================
         _update_status(conn, aula_id, status="gerando_arquivos")
         estruturado_pdf = {
@@ -160,7 +182,7 @@ def processar_aula(aula_id: int):
         # ====================================================
         _update_status(conn, aula_id, status="pronto",
                        pdf_path=pdf_path, anki_path=anki_path)
-        print(f"[Pipeline] Aula {aula_id}: CONCLUIDO!")
+        print(f"[Pipeline] Aula {aula_id}: CONCLUIDO! ({len(flashcards)} flashcards)")
 
     except Exception as e:
         import traceback
