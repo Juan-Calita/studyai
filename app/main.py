@@ -1,6 +1,7 @@
 import shutil
 import uuid
 import threading
+import urllib.parse
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -23,6 +24,29 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+def _safe_filename(titulo: str, ext: str) -> str:
+    """Sanitiza titulo para uso como nome de arquivo."""
+    # Remove caracteres problematicos
+    safe = "".join(c if c.isalnum() or c in " -_." else "_" for c in titulo)
+    safe = safe.strip()[:100] or "aula"
+    return f"{safe}.{ext}"
+
+
+def _force_download_response(file_path: str, filename: str, media_type: str) -> FileResponse:
+    """Forca download via Content-Disposition: attachment."""
+    # RFC 5987: codifica o filename pra suportar acentos/UTF-8
+    encoded = urllib.parse.quote(filename)
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        filename=filename,
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{filename}\"; filename*=UTF-8''{encoded}",
+            "X-Content-Type-Options": "nosniff",
+        }
+    )
 
 
 @app.on_event("startup")
@@ -88,8 +112,8 @@ def download_pdf(aula_id: int):
     conn.close()
     if not row or not row["pdf_path"]:
         raise HTTPException(404)
-    return FileResponse(row["pdf_path"], media_type="application/pdf",
-                        filename=f"{row['titulo']}.pdf")
+    filename = _safe_filename(row["titulo"], "pdf")
+    return _force_download_response(row["pdf_path"], filename, "application/pdf")
 
 
 @app.get("/api/aulas/{aula_id}/anki")
@@ -99,8 +123,8 @@ def download_anki(aula_id: int):
     conn.close()
     if not row or not row["anki_path"]:
         raise HTTPException(404)
-    return FileResponse(row["anki_path"], media_type="application/octet-stream",
-                        filename=f"{row['titulo']}.apkg")
+    filename = _safe_filename(row["titulo"], "apkg")
+    return _force_download_response(row["anki_path"], filename, "application/octet-stream")
 
 
 @app.get("/")
