@@ -1,4 +1,4 @@
-"""LLM service: 4 funcoes isoladas. Falha em uma nao derruba as outras."""
+"""LLM service: 4 funcoes isoladas. Flashcards adaptativos com parsing robusto."""
 import json
 import re
 import time
@@ -15,7 +15,7 @@ _model = genai.GenerativeModel("gemini-flash-latest")
 # ============================================================
 
 def _parse_json(texto: str):
-    """Extrai JSON robustamente, com auto-repair de chaves nao fechadas."""
+    """Extrai JSON robustamente, com auto-repair."""
     match = re.search(r'```(?:json)?\s*(.*?)\s*```', texto, re.DOTALL)
     if match:
         texto = match.group(1)
@@ -48,10 +48,51 @@ def _parse_json(texto: str):
             raise e
 
 
-def _call_with_retry(prompt, retries=2):
+def _extrair_cards_robustamente(texto: str) -> list:
+    """Extrai flashcards mesmo se JSON estiver malformado/cortado.
+    Aceita varios formatos e tenta recuperar ate cards individuais."""
+    # Tenta JSON primeiro
+    try:
+        data = _parse_json(texto)
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            # As vezes vem encapsulado: {"flashcards": [...]} ou {"cards": [...]}
+            for key in ('flashcards', 'cards', 'items', 'data', 'list'):
+                if key in data and isinstance(data[key], list):
+                    return data[key]
+    except Exception:
+        pass
+
+    # Fallback: extrai cards individuais via regex (cada {"pergunta":"...","resposta":"..."})
+    cards = []
+    # Padrao mais permissivo que aceita pergunta/question/front e resposta/answer/back
+    padrao = re.compile(
+        r'\{[^{}]*?"(?:pergunta|question|front|q)"\s*:\s*"((?:[^"\\]|\\.)*)"'
+        r'[^{}]*?"(?:resposta|answer|back|a)"\s*:\s*"((?:[^"\\]|\\.)*)"[^{}]*?\}',
+        re.DOTALL | re.IGNORECASE
+    )
+    for match in padrao.finditer(texto):
+        pergunta = match.group(1).replace('\\"', '"').replace('\\n', '\n').strip()
+        resposta = match.group(2).replace('\\"', '"').replace('\\n', '\n').strip()
+        if pergunta and resposta:
+            cards.append({"pergunta": pergunta, "resposta": resposta})
+
+    return cards
+
+
+def _call_with_retry(prompt, retries=2, max_tokens=None):
     last_err = None
+    config = {}
+    if max_tokens:
+        config['max_output_tokens'] = max_tokens
     for attempt in range(retries + 1):
         try:
+            if config:
+                return _model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(**config)
+                )
             return _model.generate_content(prompt)
         except exceptions.ResourceExhausted as e:
             last_err = e
@@ -96,74 +137,68 @@ Transcricao:
 
 
 # ============================================================
-# BLOCO 2: PALACIO MENTAL (com as 7 regras tecnicas)
+# BLOCO 2: PALACIO MENTAL
 # ============================================================
 
 def gerar_palacio_mental(transcricao_bruta: str, titulo: str = "") -> str:
-    """Gera palacio mental real e funcional, seguindo regras tecnicas rigorosas."""
-    prompt = f"""Construa um PALACIO MENTAL real e funcional para o conteudo da aula abaixo. Voce DEVE seguir RIGOROSAMENTE as 7 regras tecnicas:
+    """Gera palacio mental real e funcional, com 7 regras tecnicas."""
+    prompt = f"""Construa um PALACIO MENTAL real e funcional para o conteudo da aula abaixo. Siga RIGOROSAMENTE as 7 regras tecnicas:
 
 REGRA 1 - Bloque o conteudo antes de construir
-Identifique conceitos principais, detalhes secundarios e ordem logica. Se for doenca: definicao -> causa -> fisiopatologia -> clinica -> diagnostico -> tratamento -> complicacoes. Se for classificacao: cada categoria separada. Se for processo: preserve a sequencia.
+Identifique conceitos principais, detalhes secundarios e ordem logica. Se for doenca: definicao -> causa -> fisiopatologia -> clinica -> diagnostico -> tratamento -> complicacoes. Se for classificacao: cada categoria separada. Se for processo: preserve sequencia.
 
 REGRA 2 - Escolha um lugar concreto e estavel
-Use lugar especifico e visualizavel (uma casa, hospital, faculdade, igreja, academia). NAO use ambientes vagos ou genericos. Defina uma ROTA FIXA com pontos numerados. Cada ponto e um LOCUS.
+Use lugar especifico e visualizavel (uma casa, hospital, faculdade, igreja). NAO use ambientes vagos. Defina ROTA FIXA com pontos numerados. Cada ponto e um LOCUS.
 
 REGRA 3 - Um locus, uma ideia principal
-Nao sobrecarregue locus com muita informacao. Se a ideia tem muitos detalhes, use SUB-LOCI (ex: locus = sofa; sub-loci = almofada esquerda, almofada direita, encosto, braco).
+Nao sobrecarregue. Se ideia tem muitos detalhes, use SUB-LOCI (ex: locus = sofa; sub-loci = almofada esquerda, almofada direita, encosto, braco).
 
 REGRA 4 - Converta abstracoes em IMAGENS CONCRETAS E ATIVAS
-Conceitos viram objetos/personagens/simbolos/cenas absurdas. Exemplos:
+Conceitos viram objetos/personagens/cenas absurdas:
 - Inflamacao -> fogo
 - Hipertensao -> esfigmomanometro esmagando algo
 - Anemia -> pessoa palida carregando hemacias vazias
 - Obstrucao -> porta bloqueada
-- Degeneracao -> algo apodrecendo
-A imagem PRECISA AGIR no ambiente. NAO descreva cenas paradas. Use movimento, exagero, humor, estranheza, violencia simbolica, sons, cheiros. Quanto mais absurda, melhor (sem distorcer o conteudo real).
+A imagem PRECISA AGIR. Use movimento, exagero, humor, estranheza, sons, cheiros. Quanto mais absurda, melhor (sem distorcer o conteudo).
 
 REGRA 5 - Ordem da rota = ordem do conteudo
-Primeiro locus = primeiro evento. Para comparacoes, dois lados do ambiente. Para criterios, objetos numerados. Para excecoes, quebre o padrao da cena.
+Primeiro locus = primeiro evento. Para comparacoes, dois lados do ambiente. Para criterios, objetos numerados.
 
 REGRA 6 - Cada locus precisa de uma PISTA curta
-Frase de 2-5 palavras que ativa a lembranca. Ex: "pressao esmagando", "fogo inflamatorio", "porta bloqueada".
+Frase de 2-5 palavras (ex: "pressao esmagando", "fogo inflamatorio").
 
-REGRA 7 - Tamanho ideal: 7 a 15 loci
-NAO crie palacios gigantes. Maximo 15 loci.
+REGRA 7 - Tamanho ideal: 7 a 15 loci. Maximo 15.
 
 ==========================================
-ESTRUTURA OBRIGATORIA DA SAIDA (markdown puro, ~800 palavras)
-==========================================
+ESTRUTURA OBRIGATORIA (markdown puro, ~800 palavras):
 
 # Palacio Mental: {titulo or "[tema da aula]"}
 
 ## Lugar escolhido
-[Descreva em 2-3 frases o local concreto e por que e estavel/visualizavel]
+[2-3 frases descrevendo o local]
 
 ## Rota fixa
-[Liste os 7-15 loci em ordem numerada]
+[Lista numerada dos 7-15 loci]
 
 ## Loci
 
-### Locus 1: [Nome do local fisico] - [Conceito que guarda]
-**Cena:** [Imagem ATIVA com movimento e absurdo. 3-5 frases.]
-**Pista:** [frase curta de 2-5 palavras]
-**Conteudo real:** [O que a cena representa de verdade na aula]
+### Locus 1: [Nome do local] - [Conceito]
+**Cena:** [Imagem ATIVA com movimento. 3-5 frases.]
+**Pista:** [frase curta]
+**Conteudo real:** [o que representa de verdade]
 
-### Locus 2: ... [mesmo formato]
-[Continue para todos os loci]
+### Locus 2: ... [continua para todos]
 
 ## Caminhada mental sugerida
-[Texto narrativo de ~150 palavras percorrendo a rota do inicio ao fim como uma historia]
+[~150 palavras percorrendo a rota como historia]
 
 ## Treinos
 - **Ordem direta:** percorra do locus 1 ao ultimo
-- **Ordem inversa:** comece do ultimo e volte ate o primeiro
+- **Ordem inversa:** comece do ultimo
 - **Ordem aleatoria:** [3 perguntas tipo "o que esta no locus X?"]
 
 ==========================================
-RESPOSTA
-==========================================
-Retorne APENAS o markdown puro do palacio (sem JSON, sem aspas envolvendo, sem comentarios).
+Retorne APENAS o markdown puro (sem JSON, sem aspas envolvendo).
 
 Transcricao da aula:
 {transcricao_bruta[:10000]}"""
@@ -173,72 +208,114 @@ Transcricao da aula:
 
 
 # ============================================================
-# BLOCO 3: FLASHCARDS (25 cards focados em precisao)
+# BLOCO 3: FLASHCARDS ADAPTATIVOS
 # ============================================================
 
 def gerar_flashcards(transcricao_bruta: str) -> list:
-    """Gera 25 flashcards focados em valores numericos, criterios, doses e definicoes exatas."""
-    prompt = f"""Crie 25 flashcards de estudo a partir da aula abaixo.
+    """Gera flashcards adaptativos: 30+ cards, escala com duracao da aula."""
+    # Estima duracao pelo tamanho da transcricao
+    chars = len(transcricao_bruta)
+    if chars < 8000:
+        n_cards = 30
+        max_tokens = 6000
+    elif chars < 18000:
+        n_cards = 40
+        max_tokens = 8000
+    else:
+        n_cards = 50
+        max_tokens = 10000
 
-REGRAS:
-- Perguntas claras e especificas (evite perguntas genericas tipo "o que e X?")
-- Respostas concisas (1-3 frases, max 60 palavras)
-- FOQUE em precisao: valores numericos, criterios formais, doses, contraindicacoes, definicoes exatas, classificacoes especificas
-- Distribua os cards por todo o conteudo da aula
-- Inclua pelo menos 5 cards sobre detalhes tecnicos finos (numeros, percentuais, criterios)
+    print(f"[Flashcards] Transcricao={chars} chars -> alvo={n_cards} cards")
 
-Responda APENAS com JSON valido neste formato exato:
+    prompt = f"""Crie EXATAMENTE {n_cards} flashcards de estudo cobrindo TODO o conteudo da aula abaixo.
+
+REGRAS RIGOROSAS:
+- Crie {n_cards} cards (nao menos)
+- Distribua os cards igualmente por todas as secoes da aula (do inicio ao fim)
+- Perguntas claras, especificas e diretas
+- Respostas concisas (1-3 frases, max 60 palavras cada)
+- INCLUA cards sobre: definicoes exatas, valores numericos, criterios formais, doses, contraindicacoes, classificacoes, comparacoes, causas, mecanismos, sintomas, exames, tratamentos
+- Evite repetir o mesmo conceito em cards diferentes
+
+FORMATO DE SAIDA - JSON puro, comecando com [ e terminando com ]:
 [{{"pergunta":"...","resposta":"..."}},{{"pergunta":"...","resposta":"..."}}]
 
-Aula:
-{transcricao_bruta[:12000]}"""
+REGRAS DE FORMATACAO:
+- Use aspas duplas para chaves e valores
+- Dentro do conteudo, use aspas simples (nao duplas)
+- Nao quebre linhas dentro de strings (use \\n se precisar)
+- Nao adicione comentarios, apenas o JSON
+- Garanta que o JSON termine completo com ]
 
-    resp = _call_with_retry(prompt)
-    return _parse_json(resp.text)
+CONTEUDO DA AULA:
+{transcricao_bruta}"""
+
+    resp = _call_with_retry(prompt, max_tokens=max_tokens)
+    cards = _extrair_cards_robustamente(resp.text or "")
+    print(f"[Flashcards] Extraidos: {len(cards)} cards")
+
+    # Se veio menos da metade do alvo, tenta de novo com prompt simplificado
+    if len(cards) < (n_cards // 2):
+        print(f"[Flashcards] Poucos cards ({len(cards)}/{n_cards}), tentando fallback...")
+        try:
+            cards_extra = _gerar_flashcards_fallback(transcricao_bruta, n_cards - len(cards))
+            cards.extend(cards_extra)
+            print(f"[Flashcards] Apos fallback: {len(cards)} cards")
+        except Exception as e:
+            print(f"[Flashcards] Fallback falhou: {e}")
+
+    return cards
+
+
+def _gerar_flashcards_fallback(transcricao_bruta: str, alvo: int) -> list:
+    """Prompt mais simples e curto, ultimo recurso quando o principal falha."""
+    prompt = f"""Crie {alvo} flashcards a partir da aula abaixo.
+
+Formato JSON:
+[{{"pergunta":"P1","resposta":"R1"}},{{"pergunta":"P2","resposta":"R2"}}]
+
+Apenas o JSON. Sem texto antes nem depois.
+
+Aula:
+{transcricao_bruta[:15000]}"""
+
+    resp = _call_with_retry(prompt, max_tokens=6000)
+    return _extrair_cards_robustamente(resp.text or "")
 
 
 # ============================================================
-# BLOCO 4: GUIA DE ESTUDOS + BIBLIOGRAFIA (juntos)
+# BLOCO 4: GUIA DE ESTUDOS + BIBLIOGRAFIA
 # ============================================================
 
 def gerar_guia_completo(transcricao_bruta: str) -> str:
     """Gera guia programatico + bibliografia num unico markdown."""
-    prompt = f"""Analise o tema da aula abaixo e crie um GUIA DE ESTUDOS COMPLETO em markdown, com DUAS PARTES bem separadas.
+    prompt = f"""Analise o tema da aula abaixo e crie um GUIA DE ESTUDOS COMPLETO em markdown, com DUAS PARTES.
 
 ==========================================
 PARTE 1 - CONTEUDO PROGRAMATICO COMPLETO
 ==========================================
-Crie um conteudo programatico para aprender o tema da aula, do nivel iniciante ao avancado.
-Organize em 4 a 6 modulos. Para cada modulo:
+4 a 6 modulos do iniciante ao avancado. Para cada modulo:
 
-### Modulo X: [Nome do modulo] (Nivel: Iniciante / Intermediario / Avancado)
+### Modulo X: [Nome] (Nivel: Iniciante / Intermediario / Avancado)
 
 **Fundamentos essenciais (dominar primeiro):**
-- Topico 1 (mais prioritario)
+- Topico 1
 - Topico 2
-- Topico 3
 
 **Topicos complementares:**
-- Topico 4
-- Topico 5
+- Topico 3
 
 ==========================================
 PARTE 2 - BIBLIOGRAFIA POR MODULO
 ==========================================
-Para CADA modulo da Parte 1, indique de 1 a 5 livros ou artigos cientificos confiaveis.
-Prefira materiais em portugues. Aceite ingles se for referencia fundamental.
+Para CADA modulo, 1 a 5 livros/artigos confiaveis (preferir portugues).
 
 ### Bibliografia - Modulo X: [Nome]
-1. **[Titulo do livro/artigo]** - [Autor(es)], [Ano]
-   *Por que ler:* [explicacao em 2 linhas sobre relevancia para iniciantes]
-
-2. **[Titulo]** - [Autor(es)], [Ano]
+1. **[Titulo]** - [Autor], [Ano]
    *Por que ler:* [2 linhas]
 
 ==========================================
-RESPOSTA
-==========================================
-Retorne APENAS o markdown puro (sem JSON, sem aspas envolvendo, sem comentarios).
+Retorne APENAS markdown puro.
 
 Aula:
 {transcricao_bruta[:8000]}"""
