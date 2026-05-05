@@ -18,7 +18,6 @@ def transcrever(audio_path: str) -> str:
         audio_file,
     ])
 
-    # Limpa o arquivo do servidor do Google
     try:
         genai.delete_file(audio_file.name)
     except Exception:
