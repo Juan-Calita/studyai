@@ -1,5 +1,4 @@
-"""Transcricao com compactacao PARALELA ao upload do original.
-Quem terminar primeiro vence. Se compactar = ganho de tempo. Se nao = sem perda."""
+"""Transcricao: so compacta se arquivo > 90MB. Caso contrario sobe original direto."""
 import os
 import shutil
 import subprocess
@@ -17,8 +16,8 @@ genai.configure(api_key=settings.gemini_api_key)
 MODEL_NAME = "gemini-flash-latest"
 TIMEOUT_GEMINI = 300              # 5 min para Gemini transcrever
 TIMEOUT_UPLOAD = 180              # 3 min para upload terminar de processar
-TIMEOUT_COMPRESSAO = 90           # 90s no MAX para compactar (paralelo nao bloqueia)
-SKIP_COMPRESSION_BELOW_MB = 8.0   # arquivo pequeno: nao vale a pena
+TIMEOUT_COMPRESSAO = 90           # 90s no MAX para compactar
+SKIP_COMPRESSION_BELOW_MB = 90.0  # SO compacta se passar de 90MB
 SPEED_FACTOR = 1.4                # equilibrio: ganho real sem perder termos medicos
 
 
@@ -52,7 +51,7 @@ def _aguardar_upload_pronto(audio_file, timeout=TIMEOUT_UPLOAD):
 
 
 # ============================================================
-# COMPACTACAO COM FFMPEG (rapida, com timeout curto)
+# COMPACTACAO COM FFMPEG (so para arquivos > 90MB)
 # ============================================================
 
 def _achar_ffmpeg() -> Optional[str]:
@@ -67,18 +66,17 @@ def _achar_ffmpeg() -> Optional[str]:
 
 def _compactar_audio_simples(ffmpeg_exe: str, input_path: str,
                               output_dir: Path) -> Optional[str]:
-    """Compactacao SIMPLES e RAPIDA: speed 1.4x + Opus 24kbps mono.
-    SEM silenceremove (que e o filtro lento que travou antes)."""
+    """Compactacao simples e rapida: speed 1.4x + Opus 24kbps mono.
+    SEM silenceremove (que e o filtro lento)."""
     output_path = str(output_dir / "compressed.opus")
 
-    # Filtro simples: so aceleracao. silenceremove e MUITO lento, foi removido.
     cmd = [
         ffmpeg_exe, "-y", "-loglevel", "error",
         "-threads", "0",
         "-i", input_path,
         "-vn",                     # sem video
         "-ac", "1",                # mono
-        "-ar", "16000",            # 16 kHz (suficiente, e ffmpeg nao gosta de 12kHz com Opus)
+        "-ar", "16000",            # 16 kHz
         "-af", f"atempo={SPEED_FACTOR}",
         "-c:a", "libopus",
         "-b:a", "24k",             # 24 kbps voz
@@ -102,7 +100,7 @@ def _compactar_audio_simples(ffmpeg_exe: str, input_path: str,
 
 
 # ============================================================
-# COMPACTACAO PARALELA COM RACE
+# COMPACTACAO PARALELA
 # ============================================================
 
 class _CompactResult:
@@ -115,7 +113,6 @@ class _CompactResult:
 
 def _compactar_em_thread(ffmpeg_exe: str, input_path: str, output_dir: Path,
                           result: _CompactResult):
-    """Roda em thread separada, escreve no result quando termina."""
     t_start = time.time()
     try:
         path = _compactar_audio_simples(ffmpeg_exe, input_path, output_dir)
@@ -132,8 +129,7 @@ def _compactar_em_thread(ffmpeg_exe: str, input_path: str, output_dir: Path,
 # ============================================================
 
 def transcrever(audio_path: str) -> str:
-    """Estrategia: compacta em PARALELO ao upload do original.
-    Quem terminar primeiro com sucesso vence."""
+    """Transcreve audio. So tenta compactar se passar de 90MB."""
     t_total = time.time()
     size_mb_original = os.path.getsize(audio_path) / 1024 / 1024
     print(f"[Transcricao] === INICIO === arquivo {size_mb_original:.1f}MB")
@@ -147,13 +143,18 @@ def transcrever(audio_path: str) -> str:
     try:
         # === ETAPA 1: Decide se vale tentar compactar ===
         ffmpeg_exe = None
-        if size_mb_original > SKIP_COMPRESSION_BELOW_MB:
+        if size_mb_original >= SKIP_COMPRESSION_BELOW_MB:
+            print(f"[Transcricao] Arquivo grande ({size_mb_original:.1f}MB >= "
+                  f"{SKIP_COMPRESSION_BELOW_MB}MB), tentando compactar")
             ffmpeg_exe = _achar_ffmpeg()
+        else:
+            print(f"[Transcricao] Arquivo OK ({size_mb_original:.1f}MB < "
+                  f"{SKIP_COMPRESSION_BELOW_MB}MB), pulando compactacao")
 
-        # === ETAPA 2: Inicia compactacao em paralelo (se possivel) ===
+        # === ETAPA 2: Inicia compactacao em paralelo (se aplicavel) ===
         if ffmpeg_exe:
             print(f"[Transcricao] Iniciando compactacao em paralelo "
-                  f"(speed {SPEED_FACTOR}x, sem skip silencio, timeout {TIMEOUT_COMPRESSAO}s)")
+                  f"(speed {SPEED_FACTOR}x, timeout {TIMEOUT_COMPRESSAO}s)")
             tmpdir_obj = tempfile.TemporaryDirectory(prefix="studyai_audio_")
             compact_result = _CompactResult()
             compact_thread = threading.Thread(
@@ -162,13 +163,9 @@ def transcrever(audio_path: str) -> str:
                 daemon=True,
             )
             compact_thread.start()
-        else:
-            print(f"[Transcricao] Pulando compactacao "
-                  f"(arquivo pequeno ou ffmpeg indisponivel)")
 
         # === ETAPA 3: Espera compactacao OU usa original apos timeout ===
         if compact_thread:
-            # Espera ate TIMEOUT_COMPRESSAO segundos pela thread
             print(f"[Transcricao] Aguardando compactacao terminar...")
             compact_thread.join(timeout=TIMEOUT_COMPRESSAO + 5)
 
