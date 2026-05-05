@@ -1,3 +1,4 @@
+"""LLM service: 4 funcoes isoladas. Falha em uma nao derruba as outras."""
 import json
 import re
 import time
@@ -9,16 +10,21 @@ genai.configure(api_key=settings.gemini_api_key)
 _model = genai.GenerativeModel("gemini-flash-latest")
 
 
+# ============================================================
+# UTILS
+# ============================================================
+
 def _parse_json(texto: str):
-    """Extrai JSON robustamente, mesmo com lixo antes/depois."""
+    """Extrai JSON robustamente, com auto-repair de chaves nao fechadas."""
     match = re.search(r'```(?:json)?\s*(.*?)\s*```', texto, re.DOTALL)
     if match:
         texto = match.group(1)
     else:
-        first = min(
-            (texto.find(c) for c in '{[' if texto.find(c) >= 0),
-            default=-1
-        )
+        first = -1
+        for c in '{[':
+            idx = texto.find(c)
+            if idx >= 0 and (first < 0 or idx < first):
+                first = idx
         if first >= 0:
             last_obj = texto.rfind('}')
             last_arr = texto.rfind(']')
@@ -42,17 +48,15 @@ def _parse_json(texto: str):
             raise e
 
 
-def _call_with_retry(prompt, retries=2, timeout_sec=180):
+def _call_with_retry(prompt, retries=2):
     last_err = None
     for attempt in range(retries + 1):
         try:
-            return _model.generate_content(
-                prompt,
-                request_options={"timeout": timeout_sec},
-            )
+            return _model.generate_content(prompt)
         except exceptions.ResourceExhausted as e:
             last_err = e
             if attempt < retries:
+                print(f"[LLM] Quota exhausted, aguardando 40s...")
                 time.sleep(40)
         except Exception as e:
             last_err = e
@@ -61,63 +65,154 @@ def _call_with_retry(prompt, retries=2, timeout_sec=180):
     raise last_err
 
 
-def gerar_estrutura(transcricao_bruta: str) -> dict:
-    """CHAMADA A: titulo + resumo + transcricao estruturada."""
-    prompt = f"""Voce e um assistente pedagogico. Analise a transcricao da aula e gere JSON com:
+# ============================================================
+# BLOCO 1: RESUMO + TITULO + TRANSCRICAO ESTRUTURADA
+# ============================================================
 
-1. **titulo_sugerido**: titulo academico curto (max 80 chars)
-2. **resumo_expandido**: resumo didatico e detalhado em ~1500 palavras, com ## (subsecoes) e ### (detalhes). Cubra TODOS os pontos importantes da aula.
-3. **transcricao_destrinchada**: conteudo reescrito sem muletas, em markdown (# ## ###). Sem caracteres ornamentais.
+def gerar_resumo(transcricao_bruta: str) -> dict:
+    """Gera titulo + resumo expandido + transcricao limpa."""
+    prompt = f"""Voce e um assistente pedagogico. Analise a transcricao da aula abaixo e gere JSON com 3 campos:
+
+1. **titulo_sugerido**: titulo academico curto e objetivo (max 80 chars).
+
+2. **resumo_expandido**: resumo didatico e detalhado em ~1500 palavras. Use markdown com ## (subsecoes) e ### (detalhes). Cubra TODOS os pontos importantes da aula.
+
+3. **transcricao_destrinchada**: 100% do conteudo tecnico reescrito sem muletas, em markdown (# ## ###). Sem caracteres ornamentais (* - @ $).
 
 Responda APENAS com JSON valido:
-{{"titulo_sugerido":"...","resumo_expandido":"...","transcricao_destrinchada":"..."}}
+{{
+  "titulo_sugerido": "...",
+  "resumo_expandido": "...",
+  "transcricao_destrinchada": "..."
+}}
+
+Use \\n para quebras de linha. Nao use aspas duplas dentro do conteudo (use aspas simples).
 
 Transcricao:
 {transcricao_bruta}"""
-    resp = _call_with_retry(prompt, timeout_sec=180)
+
+    resp = _call_with_retry(prompt)
     return _parse_json(resp.text)
 
 
+# ============================================================
+# BLOCO 2: PALACIO MENTAL (com as 7 regras tecnicas)
+# ============================================================
+
+def gerar_palacio_mental(transcricao_bruta: str, titulo: str = "") -> str:
+    """Gera palacio mental real e funcional, seguindo regras tecnicas rigorosas."""
+    prompt = f"""Construa um PALACIO MENTAL real e funcional para o conteudo da aula abaixo. Voce DEVE seguir RIGOROSAMENTE as 7 regras tecnicas:
+
+REGRA 1 - Bloque o conteudo antes de construir
+Identifique conceitos principais, detalhes secundarios e ordem logica. Se for doenca: definicao -> causa -> fisiopatologia -> clinica -> diagnostico -> tratamento -> complicacoes. Se for classificacao: cada categoria separada. Se for processo: preserve a sequencia.
+
+REGRA 2 - Escolha um lugar concreto e estavel
+Use lugar especifico e visualizavel (uma casa, hospital, faculdade, igreja, academia). NAO use ambientes vagos ou genericos. Defina uma ROTA FIXA com pontos numerados. Cada ponto e um LOCUS.
+
+REGRA 3 - Um locus, uma ideia principal
+Nao sobrecarregue locus com muita informacao. Se a ideia tem muitos detalhes, use SUB-LOCI (ex: locus = sofa; sub-loci = almofada esquerda, almofada direita, encosto, braco).
+
+REGRA 4 - Converta abstracoes em IMAGENS CONCRETAS E ATIVAS
+Conceitos viram objetos/personagens/simbolos/cenas absurdas. Exemplos:
+- Inflamacao -> fogo
+- Hipertensao -> esfigmomanometro esmagando algo
+- Anemia -> pessoa palida carregando hemacias vazias
+- Obstrucao -> porta bloqueada
+- Degeneracao -> algo apodrecendo
+A imagem PRECISA AGIR no ambiente. NAO descreva cenas paradas. Use movimento, exagero, humor, estranheza, violencia simbolica, sons, cheiros. Quanto mais absurda, melhor (sem distorcer o conteudo real).
+
+REGRA 5 - Ordem da rota = ordem do conteudo
+Primeiro locus = primeiro evento. Para comparacoes, dois lados do ambiente. Para criterios, objetos numerados. Para excecoes, quebre o padrao da cena.
+
+REGRA 6 - Cada locus precisa de uma PISTA curta
+Frase de 2-5 palavras que ativa a lembranca. Ex: "pressao esmagando", "fogo inflamatorio", "porta bloqueada".
+
+REGRA 7 - Tamanho ideal: 7 a 15 loci
+NAO crie palacios gigantes. Maximo 15 loci.
+
+==========================================
+ESTRUTURA OBRIGATORIA DA SAIDA (markdown puro, ~800 palavras)
+==========================================
+
+# Palacio Mental: {titulo or "[tema da aula]"}
+
+## Lugar escolhido
+[Descreva em 2-3 frases o local concreto e por que e estavel/visualizavel]
+
+## Rota fixa
+[Liste os 7-15 loci em ordem numerada]
+
+## Loci
+
+### Locus 1: [Nome do local fisico] - [Conceito que guarda]
+**Cena:** [Imagem ATIVA com movimento e absurdo. 3-5 frases.]
+**Pista:** [frase curta de 2-5 palavras]
+**Conteudo real:** [O que a cena representa de verdade na aula]
+
+### Locus 2: ... [mesmo formato]
+[Continue para todos os loci]
+
+## Caminhada mental sugerida
+[Texto narrativo de ~150 palavras percorrendo a rota do inicio ao fim como uma historia]
+
+## Treinos
+- **Ordem direta:** percorra do locus 1 ao ultimo
+- **Ordem inversa:** comece do ultimo e volte ate o primeiro
+- **Ordem aleatoria:** [3 perguntas tipo "o que esta no locus X?"]
+
+==========================================
+RESPOSTA
+==========================================
+Retorne APENAS o markdown puro do palacio (sem JSON, sem aspas envolvendo, sem comentarios).
+
+Transcricao da aula:
+{transcricao_bruta[:10000]}"""
+
+    resp = _call_with_retry(prompt)
+    return (resp.text or "").strip()
+
+
+# ============================================================
+# BLOCO 3: FLASHCARDS (25 cards focados em precisao)
+# ============================================================
+
 def gerar_flashcards(transcricao_bruta: str) -> list:
-    """CHAMADA B: 25 flashcards."""
+    """Gera 25 flashcards focados em valores numericos, criterios, doses e definicoes exatas."""
     prompt = f"""Crie 25 flashcards de estudo a partir da aula abaixo.
 
-Regras:
+REGRAS:
 - Perguntas claras e especificas (evite perguntas genericas tipo "o que e X?")
-- Respostas concisas (1-3 frases, maximo 60 palavras)
-- Foque em conceitos, definicoes, processos e aplicacoes praticas
+- Respostas concisas (1-3 frases, max 60 palavras)
+- FOQUE em precisao: valores numericos, criterios formais, doses, contraindicacoes, definicoes exatas, classificacoes especificas
 - Distribua os cards por todo o conteudo da aula
+- Inclua pelo menos 5 cards sobre detalhes tecnicos finos (numeros, percentuais, criterios)
 
 Responda APENAS com JSON valido neste formato exato:
 [{{"pergunta":"...","resposta":"..."}},{{"pergunta":"...","resposta":"..."}}]
 
 Aula:
 {transcricao_bruta[:12000]}"""
-    resp = _call_with_retry(prompt, timeout_sec=120)
+
+    resp = _call_with_retry(prompt)
     return _parse_json(resp.text)
 
 
-def gerar_extras(transcricao_bruta: str) -> dict:
-    """CHAMADA C (opcional): guia de estudos completo (programa + bibliografia) + palacio mental."""
-    prompt = f"""Analise o tema da aula abaixo e gere material complementar de estudo aprofundado.
+# ============================================================
+# BLOCO 4: GUIA DE ESTUDOS + BIBLIOGRAFIA (juntos)
+# ============================================================
 
-VOCE DEVE GERAR DOIS CAMPOS:
+def gerar_guia_completo(transcricao_bruta: str) -> str:
+    """Gera guia programatico + bibliografia num unico markdown."""
+    prompt = f"""Analise o tema da aula abaixo e crie um GUIA DE ESTUDOS COMPLETO em markdown, com DUAS PARTES bem separadas.
 
 ==========================================
-CAMPO 1: guia_de_estudos
+PARTE 1 - CONTEUDO PROGRAMATICO COMPLETO
 ==========================================
-O guia_de_estudos deve ter DUAS PARTES bem separadas em markdown:
+Crie um conteudo programatico para aprender o tema da aula, do nivel iniciante ao avancado.
+Organize em 4 a 6 modulos. Para cada modulo:
 
-## PARTE 1 - CONTEUDO PROGRAMATICO COMPLETO
+### Modulo X: [Nome do modulo] (Nivel: Iniciante / Intermediario / Avancado)
 
-Crie um conteudo programatico completo para aprender o tema da aula, do nivel iniciante ao avancado.
-Organize por modulos. Para cada modulo:
-- Liste os topicos mais importantes em ordem de prioridade
-- Destaque quais sao os fundamentos essenciais que todo iniciante deve dominar primeiro
-
-Use esta estrutura para CADA modulo:
-
-### Modulo 1: [Nome do modulo] (Nivel: Iniciante)
 **Fundamentos essenciais (dominar primeiro):**
 - Topico 1 (mais prioritario)
 - Topico 2
@@ -127,49 +222,26 @@ Use esta estrutura para CADA modulo:
 - Topico 4
 - Topico 5
 
-### Modulo 2: [Nome do modulo] (Nivel: Intermediario)
-[mesma estrutura]
-
-### Modulo 3: [Nome do modulo] (Nivel: Avancado)
-[mesma estrutura]
-
-Gere de 4 a 6 modulos no total, progredindo de iniciante a avancado.
-
-## PARTE 2 - BIBLIOGRAFIA RECOMENDADA POR MODULO
-
+==========================================
+PARTE 2 - BIBLIOGRAFIA POR MODULO
+==========================================
 Para CADA modulo da Parte 1, indique de 1 a 5 livros ou artigos cientificos confiaveis.
-Prefira materiais em portugues, mas aceite ingles se for referencia fundamental na area.
-Para cada indicacao, explique em 2 linhas por que ela e relevante para quem esta comecando.
+Prefira materiais em portugues. Aceite ingles se for referencia fundamental.
 
-Use esta estrutura:
-
-### Bibliografia - Modulo 1: [Nome]
+### Bibliografia - Modulo X: [Nome]
 1. **[Titulo do livro/artigo]** - [Autor(es)], [Ano]
    *Por que ler:* [explicacao em 2 linhas sobre relevancia para iniciantes]
 
-2. **[Titulo do livro/artigo]** - [Autor(es)], [Ano]
-   *Por que ler:* [explicacao em 2 linhas]
-
-### Bibliografia - Modulo 2: [Nome]
-[mesma estrutura, 1 a 5 indicacoes]
-
-[continuar para todos os modulos]
-
-==========================================
-CAMPO 2: palacio_mental
-==========================================
-Narrativa de memorizacao em ~600 palavras, usando metafora de jornada por um edificio (comodos, salas, detalhes). Inclua frases-gatilho de memorizacao.
+2. **[Titulo]** - [Autor(es)], [Ano]
+   *Por que ler:* [2 linhas]
 
 ==========================================
 RESPOSTA
 ==========================================
-Responda APENAS com JSON valido neste formato exato:
-{{"guia_de_estudos":"...","palacio_mental":"..."}}
-
-Use \\n para quebras de linha dentro das strings.
-NAO use aspas duplas dentro do conteudo (use aspas simples se precisar).
+Retorne APENAS o markdown puro (sem JSON, sem aspas envolvendo, sem comentarios).
 
 Aula:
 {transcricao_bruta[:8000]}"""
-    resp = _call_with_retry(prompt, timeout_sec=180, retries=1)
-    return _parse_json(resp.text)
+
+    resp = _call_with_retry(prompt)
+    return (resp.text or "").strip()
