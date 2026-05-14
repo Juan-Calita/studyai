@@ -993,6 +993,164 @@ body {
   .btn-continue { width: 100%; min-width: 0; }
 }
 
+/* ═══════════════════════ MODO PARTES ═══════════════════════ */
+.parts-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background .2s;
+  user-select: none;
+}
+.parts-toggle-row:hover { background: rgba(255,255,255,.10); }
+.parts-toggle-label { font-size: 13.5px; font-weight: 600; color: #ECE7FB; flex: 1; }
+.parts-toggle-sub { font-size: 12px; color: #9F88D4; }
+.toggle-switch {
+  position: relative; width: 42px; height: 24px; flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,.18);
+  border-radius: 999px;
+  transition: .2s;
+  cursor: pointer;
+}
+.toggle-slider::before {
+  content: ''; position: absolute;
+  width: 18px; height: 18px;
+  left: 3px; top: 3px;
+  background: #fff; border-radius: 50%;
+  transition: .2s;
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+.parts-section {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: riseIn .35s ease both;
+}
+.parts-list { display: flex; flex-direction: column; gap: 8px; }
+.part-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 12px;
+  transition: border-color .2s;
+}
+.part-item.ready { border-color: rgba(16,185,129,.35); }
+.part-item.error { border-color: rgba(239,68,68,.35); }
+.part-num {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(121,66,249,.3);
+  color: #D4C4FF;
+  font-size: 12px; font-weight: 700;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.part-info { flex: 1; min-width: 0; }
+.part-name { font-size: 13px; font-weight: 600; color: #ECE7FB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.part-status-text { font-size: 11px; color: #9F88D4; margin-top: 2px; }
+.part-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255,255,255,.08);
+  color: #CEC7E9;
+  flex-shrink: 0;
+}
+.part-badge.done { background: rgba(16,185,129,.18); color: #6EE7B7; }
+.part-badge.error { background: rgba(239,68,68,.18); color: #FCA5A5; }
+.part-badge.processing { background: rgba(121,66,249,.22); color: #C4B5FD; }
+.part-file-btn {
+  border: 1px dashed rgba(255,255,255,.25);
+  background: transparent;
+  color: #CEC7E9;
+  font-size: 12px; font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.part-file-btn:hover { border-color: rgba(159,108,255,.5); background: rgba(121,66,249,.12); }
+.part-remove-btn {
+  border: none; background: none;
+  color: rgba(255,255,255,.35);
+  font-size: 16px; font-weight: 600;
+  cursor: pointer; padding: 4px 6px;
+  border-radius: 6px;
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+.part-remove-btn:hover { color: #FCA5A5; background: rgba(239,68,68,.12); }
+.parts-actions {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;
+}
+.btn-add-part {
+  border: 1px dashed rgba(255,255,255,.22);
+  background: rgba(255,255,255,.04);
+  color: #B9B2D4;
+  font-size: 13px; font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: .2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-add-part:hover { border-color: rgba(159,108,255,.45); background: rgba(121,66,249,.10); color: #ECE7FB; }
+.btn-send-parts {
+  flex: 1;
+  min-width: 180px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #8D59FF 0%, #6D35F8 100%);
+  color: #fff;
+  font-size: 13.5px; font-weight: 700;
+  border: none; cursor: pointer;
+  box-shadow: 0 14px 28px rgba(109,53,248,.28);
+  transition: transform .2s, box-shadow .2s, opacity .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-send-parts:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 20px 34px rgba(109,53,248,.34); }
+.btn-send-parts:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Painel de compilação */
+.compile-panel {
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-top: 4px;
+}
+.compile-panel-title { font-size: 13.5px; font-weight: 700; color: #ECE7FB; margin-bottom: 8px; }
+.parts-status-grid { display: flex; flex-direction: column; gap: 6px; }
+.part-status-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12.5px; color: #B9B2D4;
+}
+.part-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: rgba(255,255,255,.2); flex-shrink: 0;
+  transition: background .3s;
+}
+.part-dot.done { background: var(--green); box-shadow: 0 0 0 4px rgba(16,185,129,.15); }
+.part-dot.processing { background: var(--primary); box-shadow: 0 0 0 4px rgba(121,66,249,.15); animation: pulse 1.4s infinite; }
+.part-dot.error { background: #EF4444; }
 </style>
 </head>
 <body>
@@ -1121,14 +1279,41 @@ body {
             </div>
           </div>
 
-          <label class="drop-card" id="drop-card">
-            <input type="file" id="file-input" accept="audio/*" style="display:none">
-            <div class="drop-icon">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          <div id="upload-area">
+            <label class="drop-card" id="drop-card">
+              <input type="file" id="file-input" accept="audio/*" style="display:none">
+              <div class="drop-icon">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+              </div>
+              <div class="drop-title">Envie sua aula gravada</div>
+              <div class="drop-sub">Arraste e solte aqui ou clique para selecionar o arquivo de áudio.</div>
+            </label>
+
+            <!-- Toggle: Aula em partes -->
+            <label class="parts-toggle-row" for="toggle-partes">
+              <div>
+                <div class="parts-toggle-label">Aula em partes</div>
+                <div class="parts-toggle-sub">Divida uma aula longa em vários arquivos de áudio</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-partes" onchange="togglePartesMode(this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </label>
+
+            <!-- Seção de gerenciamento de partes (oculta por padrão) -->
+            <div id="parts-section" class="parts-section hidden">
+              <div id="parts-list" class="parts-list"></div>
+              <div class="parts-actions">
+                <button type="button" class="btn-add-part" id="btn-add-part" onclick="adicionarParte()">
+                  + Adicionar parte
+                </button>
+                <button type="button" class="btn-send-parts" id="btn-send-parts" disabled onclick="enviarTodasPartes()">
+                  Processar aula completa →
+                </button>
+              </div>
             </div>
-            <div class="drop-title">Envie sua aula gravada</div>
-            <div class="drop-sub">Arraste e solte aqui ou clique para selecionar o arquivo de áudio.</div>
-          </label>
+          </div>
         </div>
         <div class="upload-note">Fluxo pensado para ser simples: enviar, processar, revisar e exportar. Para produção, esta mesma base já está pronta para encaixar validação, fila e histórico.</div>
         <div id="error-upload" class="error-msg hidden"></div>
@@ -1578,6 +1763,7 @@ function renderStages(currentStage, stageProgress) {
 }
 
 document.getElementById('drop-card').addEventListener('click', (e) => {
+  if (partesMode) return;
   if (e.target.tagName !== 'INPUT') document.getElementById('file-input').click();
 });
 document.getElementById('file-input').addEventListener('change', handleUpload);
@@ -1587,15 +1773,18 @@ function resetUploadInput(){ document.getElementById('file-input').value = ''; }
 const dropCard = document.getElementById('drop-card');
 ['dragenter', 'dragover'].forEach(ev => {
   dropCard.addEventListener(ev, (e) => {
+    if (partesMode) return;
     e.preventDefault(); dropCard.classList.add('drag');
   });
 });
 ['dragleave', 'drop'].forEach(ev => {
   dropCard.addEventListener(ev, (e) => {
+    if (partesMode) return;
     e.preventDefault(); dropCard.classList.remove('drag');
   });
 });
 dropCard.addEventListener('drop', (e) => {
+  if (partesMode) return;
   const file = e.dataTransfer.files[0];
   if (file) handleUpload({ target: { files: [file] } });
 });
@@ -1630,6 +1819,7 @@ function resetProcessing() {
   if (processingInterval) clearInterval(processingInterval);
   if (processingSmooth) clearInterval(processingSmooth);
   if (processingTimer) clearInterval(processingTimer);
+  if (sessaoInterval) { clearInterval(sessaoInterval); sessaoInterval = null; }
   processingInterval = null; processingSmooth = null; processingTimer = null;
   processingStartedAt = null; lastKnownProgress = 0;
 }
@@ -1641,6 +1831,14 @@ function cancelProcessing() {
   document.getElementById('view-upload').classList.remove('hidden');
   document.getElementById('error-upload').classList.add('hidden');
   resetUploadInput();
+  // Limpa modo partes se estava ativo
+  if (partesMode) {
+    partesMode = false;
+    partes = [];
+    sessaoAtual = null;
+    document.getElementById('toggle-partes').checked = false;
+    togglePartesMode(false);
+  }
 }
 
 function startNewLesson() {
@@ -2023,6 +2221,227 @@ document.addEventListener('DOMContentLoaded', () => {
   maybeShowOnboarding();
   showTab('resumo');
 });
+
+
+// ═══════════════════════ MODO PARTES ═══════════════════════
+
+let partesMode = false;
+let partes = []; // Array de {id, file, status, aula_id}
+let sessaoAtual = null; // { sessao_id, titulo }
+let sessaoInterval = null;
+
+function togglePartesMode(ativo) {
+  partesMode = ativo;
+  const dropCard = document.getElementById('drop-card');
+  const partesSec = document.getElementById('parts-section');
+  if (ativo) {
+    dropCard.style.display = 'none';
+    partesSec.classList.remove('hidden');
+    if (partes.length === 0) adicionarParte();
+  } else {
+    dropCard.style.display = '';
+    partesSec.classList.add('hidden');
+    partes = [];
+    renderPartsList();
+  }
+}
+
+function adicionarParte() {
+  if (partes.length >= 10) return;
+  const id = Date.now();
+  partes.push({ id, file: null, status: 'aguardando', aula_id: null, nome: '' });
+  renderPartsList();
+}
+
+function removerParte(id) {
+  partes = partes.filter(p => p.id !== id);
+  if (partes.length === 0) adicionarParte();
+  else renderPartsList();
+}
+
+function selecionarArquivoParte(id) {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'audio/*';
+  inp.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const p = partes.find(x => x.id === id);
+    if (p) {
+      p.file = file;
+      p.nome = file.name.replace(/\.[^.]+$/, '');
+      p.status = 'pronto';
+      renderPartsList();
+      atualizarBotaoEnviar();
+    }
+  };
+  inp.click();
+}
+
+function atualizarBotaoEnviar() {
+  const btn = document.getElementById('btn-send-parts');
+  const algumPronto = partes.some(p => p.status === 'pronto');
+  const todosComArquivo = partes.every(p => p.file !== null);
+  btn.disabled = !algumPronto || !todosComArquivo;
+}
+
+function renderPartsList() {
+  const list = document.getElementById('parts-list');
+  list.innerHTML = '';
+  partes.forEach((p, idx) => {
+    const div = document.createElement('div');
+    const readonlyPart = p.status !== 'aguardando' && p.status !== 'pronto';
+    div.className = 'part-item' + (p.file ? ' ready' : '') + (p.status === 'erro' ? ' error' : '');
+    const badgeClass = { pronto: '', aguardando: '', processando: 'processing', transcrevendo: 'processing', gerando_resumo: 'processing', gerando_flashcards: 'processing', gerando_arquivos: 'processing', compilando: 'processing', concluido: 'done', erro: 'error' }[p.status] || '';
+    const badgeLabel = { aguardando: 'sem arquivo', pronto: 'pronto', processando: 'enviando...', transcrevendo: 'transcrevendo', gerando_resumo: 'resumindo', gerando_flashcards: 'flashcards', gerando_arquivos: 'exportando', compilando: 'compilando', concluido: 'concluído', erro: 'erro' }[p.status] || p.status;
+    div.innerHTML =
+      '<div class="part-num">' + (idx + 1) + '</div>' +
+      '<div class="part-info">' +
+        '<div class="part-name">' + (p.nome || 'Nenhum arquivo selecionado') + '</div>' +
+        '<div class="part-status-text">' + (p.file ? (p.file.size / (1024 * 1024)).toFixed(1) + ' MB' : 'Clique em "Selecionar" para escolher o áudio') + '</div>' +
+      '</div>' +
+      '<span class="part-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+      (!readonlyPart ? '<button type="button" class="part-file-btn">Selecionar</button>' : '') +
+      (!readonlyPart ? '<button type="button" class="part-remove-btn" title="Remover">×</button>' : '');
+    if (!readonlyPart) {
+      div.querySelector('.part-file-btn').onclick = () => selecionarArquivoParte(p.id);
+      div.querySelector('.part-remove-btn').onclick = () => removerParte(p.id);
+    }
+    list.appendChild(div);
+  });
+  const addBtn = document.getElementById('btn-add-part');
+  if (addBtn) addBtn.style.display = partes.length >= 10 ? 'none' : '';
+  atualizarBotaoEnviar();
+}
+
+async function enviarTodasPartes() {
+  const partesComArquivo = partes.filter(p => p.file);
+  if (!partesComArquivo.length) return;
+
+  const titulo = partesComArquivo[0].nome || 'Aula em partes';
+  const totalPartes = partesComArquivo.length;
+
+  document.getElementById('btn-send-parts').disabled = true;
+  document.getElementById('btn-add-part').style.display = 'none';
+
+  try {
+    // Cria a sessão
+    const formSessao = new FormData();
+    formSessao.append('titulo', titulo);
+    formSessao.append('total_partes', totalPartes);
+    const resSessao = await fetch(API + '/api/sessoes', { method: 'POST', body: formSessao });
+    if (!resSessao.ok) throw new Error('Não foi possível criar a sessão.');
+    const dataSessao = await resSessao.json();
+    const sessaoId = dataSessao.sessao_id;
+    sessaoAtual = { sessao_id: sessaoId, titulo };
+
+    // Faz upload de cada parte
+    for (let i = 0; i < partesComArquivo.length; i++) {
+      const p = partesComArquivo[i];
+      p.status = 'processando';
+      renderPartsList();
+
+      const formParte = new FormData();
+      formParte.append('titulo', p.nome || `Parte ${i + 1}`);
+      formParte.append('audio', p.file);
+      formParte.append('sessao_id', sessaoId);
+      formParte.append('numero_parte', i + 1);
+      const resParte = await fetch(API + '/api/aulas', { method: 'POST', body: formParte });
+      if (!resParte.ok) { p.status = 'erro'; renderPartsList(); continue; }
+      const dataParte = await resParte.json();
+      p.aula_id = dataParte.aula_id;
+    }
+
+    // Vai para a tela de processamento da sessão
+    iniciarPollSessao(sessaoId, titulo, totalPartes);
+
+  } catch (err) {
+    document.getElementById('btn-send-parts').disabled = false;
+    showError(err.message);
+  }
+}
+
+function iniciarPollSessao(sessaoId, titulo, totalPartes) {
+  document.getElementById('error-upload').classList.add('hidden');
+  document.getElementById('view-upload').classList.add('hidden');
+  document.getElementById('view-result').classList.add('hidden');
+  document.getElementById('view-processing').classList.remove('hidden');
+  document.getElementById('proc-title').textContent = `Processando ${totalPartes} partes...`;
+  document.getElementById('proc-file').textContent = titulo + ' · ' + totalPartes + ' partes';
+  document.getElementById('metric-elapsed').textContent = '00:00';
+  document.getElementById('metric-health').textContent = 'Estável';
+  initWaveBars();
+  renderStages(1, 20);
+  setProcessingState({ progress: 15, stageName: 'Partes', badge: 'processando', hint: 'Cada parte está sendo transcrita e processada em paralelo. A compilação final acontece quando todas estiverem prontas.' });
+
+  resetProcessing();
+  processingStartedAt = Date.now();
+
+  processingTimer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - processingStartedAt) / 1000);
+    document.getElementById('metric-elapsed').textContent = formatTime(elapsed);
+    if (elapsed > 60) document.getElementById('metric-health').textContent = 'Processando';
+    if (elapsed > 180) document.getElementById('metric-health').textContent = 'Aguarde';
+  }, 1000);
+
+  sessaoInterval = setInterval(async () => {
+    try {
+      const res = await fetch(API + '/api/sessoes/' + sessaoId);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const prontas = (data.partes || []).filter(p => p.status === 'pronto').length;
+      const totalP = data.total_partes || totalPartes;
+      const pct = Math.round((prontas / totalP) * 60);
+
+      // Atualiza status das partes na lista
+      (data.partes || []).forEach(p => {
+        const parte = partes.find(x => x.aula_id === p.id);
+        if (parte) parte.status = p.status;
+      });
+
+      const statusLabel = { processando: 'Transcrevendo partes', transcrevendo: 'Transcrevendo', compilando: 'Compilando aula completa', gerando_resumo: 'Gerando resumo unificado', gerando_flashcards: 'Gerando flashcards', gerando_arquivos: 'Gerando arquivos', pronto: 'Concluído', aguardando: 'Aguardando', erro: 'Erro' };
+
+      if (data.status === 'pronto') {
+        clearInterval(sessaoInterval);
+        sessaoInterval = null;
+        resetProcessing();
+        renderStages(4, 100);
+        setProcessingState({ progress: 100, stageName: 'Concluído', badge: 'pronto', hint: 'Aula compilada com sucesso! PDF e deck Anki prontos.', health: 'Concluído' });
+        aulaData = {
+          titulo: data.titulo,
+          resumo: data.resumo,
+          transcricao: data.transcricao,
+          flashcards: data.flashcards || [],
+          pdf_url: data.pdf_url,
+          anki_url: data.anki_url,
+        };
+        setTimeout(() => {
+          partesMode = false;
+          partes = [];
+          document.getElementById('toggle-partes').checked = false;
+          togglePartesMode(false);
+          renderResult();
+        }, 420);
+
+      } else if (data.status === 'erro') {
+        clearInterval(sessaoInterval);
+        sessaoInterval = null;
+        resetProcessing();
+        showError(data.erro || 'Falha na compilação da sessão.');
+
+      } else {
+        const hint = statusLabel[data.status] || data.status;
+        const stage = ['compilando', 'gerando_resumo', 'gerando_flashcards', 'gerando_guia', 'gerando_arquivos'].includes(data.status) ? 3 : (prontas === totalP ? 2 : 1);
+        const progress = ['compilando', 'gerando_resumo', 'gerando_flashcards', 'gerando_guia', 'gerando_arquivos'].includes(data.status) ? 80 + pct * 0.2 : 15 + pct;
+        renderStages(stage, Math.min(pct * 1.5, 95));
+        setProcessingState({ progress: Math.min(progress, 96), stageName: hint, badge: data.status, hint: `${prontas}/${totalP} partes prontas. ${hint}...` });
+      }
+    } catch (_) {
+      document.getElementById('metric-health').textContent = 'Reconectando';
+    }
+  }, 2500);
+}
 
 </script>
 </body>

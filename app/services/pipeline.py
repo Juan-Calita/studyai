@@ -1,4 +1,5 @@
 """Pipeline sequencial com falha isolada por bloco."""
+import threading
 from app.database import get_conn
 from app.services import transcription, llm, pdf_generator, anki_export
 
@@ -184,11 +185,19 @@ def processar_aula(aula_id: int):
                        pdf_path=pdf_path, anki_path=anki_path)
         print(f"[Pipeline] Aula {aula_id}: CONCLUIDO! ({len(flashcards)} flashcards)")
 
+        # Verifica se faz parte de uma sessão e se todas as partes estão prontas
+        if row["sessao_id"]:
+            _verificar_sessao(conn, row["sessao_id"])
+
     except Exception as e:
         import traceback
         print(f"[Pipeline] Aula {aula_id}: ERRO FATAL: {e}")
         print(traceback.format_exc())
+        sessao_id_on_error = None
         try:
+            row_err = conn.execute("SELECT sessao_id FROM aulas WHERE id=?", (aula_id,)).fetchone()
+            if row_err:
+                sessao_id_on_error = row_err["sessao_id"]
             conn.execute(
                 "UPDATE aulas SET status='erro', erro=? WHERE id=?",
                 (str(e)[:500], aula_id)
@@ -196,5 +205,35 @@ def processar_aula(aula_id: int):
             conn.commit()
         except Exception:
             pass
+        if sessao_id_on_error:
+            try:
+                conn.execute(
+                    "UPDATE sessoes SET status='erro', erro=? WHERE id=?",
+                    (f"Parte {aula_id} falhou: {str(e)[:400]}", sessao_id_on_error)
+                )
+                conn.commit()
+            except Exception:
+                pass
     finally:
         conn.close()
+
+
+def _verificar_sessao(conn, sessao_id: int):
+    """Checa se todas as partes da sessão estão prontas e dispara compilação."""
+    sessao = conn.execute("SELECT * FROM sessoes WHERE id=?", (sessao_id,)).fetchone()
+    if not sessao or sessao["status"] not in ("processando", "aguardando"):
+        return
+
+    total = sessao["total_partes"]
+    prontas = conn.execute(
+        "SELECT COUNT(*) FROM aulas WHERE sessao_id=? AND status='pronto'",
+        (sessao_id,)
+    ).fetchone()[0]
+
+    print(f"[Pipeline] Sessao {sessao_id}: {prontas}/{total} partes prontas")
+
+    if prontas >= total:
+        print(f"[Pipeline] Sessao {sessao_id}: todas as partes prontas, compilando...")
+        from app.services.compilar_sessao import compilar_sessao
+        t = threading.Thread(target=compilar_sessao, args=(sessao_id,), daemon=True)
+        t.start()
