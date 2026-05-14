@@ -1,5 +1,6 @@
-"""Pipeline sequencial com falha isolada por bloco."""
+"""Pipeline com etapas paralelas e otimizacao para partes de sessao."""
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.database import get_conn
 from app.services import transcription, llm, pdf_generator, anki_export
 
@@ -26,15 +27,11 @@ def _sanitizar_flashcards(cards):
             continue
         p_limpo = str(pergunta).strip()[:500]
         r_limpo = str(resposta).strip()[:1000]
-        # Evita duplicata exata
         chave = p_limpo.lower()
         if chave in perguntas_vistas:
             continue
         perguntas_vistas.add(chave)
-        resultado.append({
-            'pergunta': p_limpo,
-            'resposta': r_limpo,
-        })
+        resultado.append({'pergunta': p_limpo, 'resposta': r_limpo})
     return resultado
 
 
@@ -44,6 +41,8 @@ def processar_aula(aula_id: int):
         row = conn.execute("SELECT * FROM aulas WHERE id = ?", (aula_id,)).fetchone()
         if not row:
             return
+
+        is_parte_sessao = bool(row["sessao_id"])
 
         # ====================================================
         # ETAPA 1: TRANSCRICAO (obrigatoria)
@@ -60,9 +59,9 @@ def processar_aula(aula_id: int):
                        resumo="Processando conteudo expandido...")
 
         # ====================================================
-        # ETAPA 2: RESUMO
+        # ETAPA 2: RESUMO (sempre necessario)
         # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: bloco 1/4 - resumo...")
+        print(f"[Pipeline] Aula {aula_id}: gerando resumo...")
         _update_status(conn, aula_id, status="gerando_resumo")
         titulo = row["titulo"]
         resumo = ""
@@ -82,37 +81,72 @@ def processar_aula(aula_id: int):
                        transcricao=transcricao_estruturada)
 
         # ====================================================
-        # ETAPA 3: PALACIO MENTAL
+        # ETAPA 3: FLASHCARDS (sempre necessario)
+        # Para partes de sessao: apenas flashcards, sem palacio/guia/pdf/anki
+        # Para aulas normais: palacio + flashcards + guia em paralelo
         # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: bloco 2/4 - palacio...")
-        _update_status(conn, aula_id, status="gerando_palacio")
-        palacio = ""
-        try:
-            palacio = llm.gerar_palacio_mental(texto_bruto, titulo)
-            print(f"[Pipeline] Palacio OK ({len(palacio)} chars)")
-        except Exception as e:
-            print(f"[Pipeline] Palacio falhou: {e}")
-
-        # ====================================================
-        # ETAPA 4: FLASHCARDS (com retry interno na llm.py)
-        # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: bloco 3/4 - flashcards...")
-        _update_status(conn, aula_id, status="gerando_flashcards")
         flashcards = []
-        try:
-            cards_raw = llm.gerar_flashcards(texto_bruto)
-            flashcards = _sanitizar_flashcards(cards_raw)
-            print(f"[Pipeline] Flashcards apos sanitizar: {len(flashcards)} cards")
-        except Exception as e:
-            print(f"[Pipeline] Flashcards falharam: {e}")
+        palacio = ""
+        guia = ""
 
-        # Se VERDADEIRAMENTE nao veio nada, tenta uma vez mais com prompt minimo
+        if is_parte_sessao:
+            # Partes de sessao: apenas flashcards (palacio/guia/pdf/anki serao feitos na compilacao)
+            print(f"[Pipeline] Aula {aula_id}: parte de sessao - apenas flashcards...")
+            _update_status(conn, aula_id, status="gerando_flashcards")
+            try:
+                cards_raw = llm.gerar_flashcards(texto_bruto)
+                flashcards = _sanitizar_flashcards(cards_raw)
+                print(f"[Pipeline] Flashcards: {len(flashcards)} cards")
+            except Exception as e:
+                print(f"[Pipeline] Flashcards falharam: {e}")
+
+        else:
+            # Aulas normais: palacio + flashcards + guia em paralelo
+            print(f"[Pipeline] Aula {aula_id}: gerando palacio + flashcards + guia em paralelo...")
+            _update_status(conn, aula_id, status="gerando_resumo")
+
+            def _gerar_palacio():
+                try:
+                    result = llm.gerar_palacio_mental(texto_bruto, titulo)
+                    print(f"[Pipeline] Palacio OK ({len(result)} chars)")
+                    return result
+                except Exception as e:
+                    print(f"[Pipeline] Palacio falhou: {e}")
+                    return ""
+
+            def _gerar_flashcards_task():
+                try:
+                    cards_raw = llm.gerar_flashcards(texto_bruto)
+                    result = _sanitizar_flashcards(cards_raw)
+                    print(f"[Pipeline] Flashcards: {len(result)} cards")
+                    return result
+                except Exception as e:
+                    print(f"[Pipeline] Flashcards falharam: {e}")
+                    return []
+
+            def _gerar_guia():
+                try:
+                    result = llm.gerar_guia_completo(texto_bruto)
+                    print(f"[Pipeline] Guia OK ({len(result)} chars)")
+                    return result
+                except Exception as e:
+                    print(f"[Pipeline] Guia falhou: {e}")
+                    return ""
+
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                fut_palacio = executor.submit(_gerar_palacio)
+                fut_flashcards = executor.submit(_gerar_flashcards_task)
+                fut_guia = executor.submit(_gerar_guia)
+                palacio = fut_palacio.result()
+                flashcards = fut_flashcards.result()
+                guia = fut_guia.result()
+
+        # Retry flashcards se vieram poucos
         if len(flashcards) < 5:
             print(f"[Pipeline] So {len(flashcards)} cards, fazendo retry final...")
             try:
                 cards_extra = llm._gerar_flashcards_fallback(texto_bruto, 30)
                 cards_extra_san = _sanitizar_flashcards(cards_extra)
-                # Junta sem duplicar
                 perguntas_existentes = {c['pergunta'].lower() for c in flashcards}
                 for c in cards_extra_san:
                     if c['pergunta'].lower() not in perguntas_existentes:
@@ -121,14 +155,12 @@ def processar_aula(aula_id: int):
             except Exception as e:
                 print(f"[Pipeline] Retry final falhou: {e}")
 
-        # Garante minimo absoluto pra UI nao quebrar
         if not flashcards:
             flashcards = [{
                 "pergunta": f"Qual e o tema central de '{titulo}'?",
                 "resposta": resumo[:300] if resumo else "Veja a transcricao da aula."
             }]
 
-        # Salva todos no banco
         for c in flashcards:
             conn.execute(
                 "INSERT INTO flashcards (aula_id, pergunta, resposta) VALUES (?, ?, ?)",
@@ -137,46 +169,47 @@ def processar_aula(aula_id: int):
         conn.commit()
 
         # ====================================================
-        # ETAPA 5: GUIA + BIBLIOGRAFIA
+        # ETAPA 4: PDF + ANKI (apenas aulas normais, em paralelo)
         # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: bloco 4/4 - guia...")
-        _update_status(conn, aula_id, status="gerando_guia")
-        guia = ""
-        try:
-            guia = llm.gerar_guia_completo(texto_bruto)
-            print(f"[Pipeline] Guia OK ({len(guia)} chars)")
-        except Exception as e:
-            print(f"[Pipeline] Guia falhou: {e}")
+        pdf_path = None
+        anki_path = None
 
-        # ====================================================
-        # ETAPA 6: PDF
-        # ====================================================
-        _update_status(conn, aula_id, status="gerando_arquivos")
-        estruturado_pdf = {
-            'guia_de_estudos': guia,
-            'resumo_expandido': resumo,
-            'palacio_mental': palacio,
-            'transcricao_estruturada': transcricao_estruturada,
-        }
+        if not is_parte_sessao:
+            _update_status(conn, aula_id, status="gerando_arquivos")
+            estruturado_pdf = {
+                'guia_de_estudos': guia,
+                'resumo_expandido': resumo,
+                'palacio_mental': palacio,
+                'transcricao_estruturada': transcricao_estruturada,
+            }
 
-        print(f"[Pipeline] Aula {aula_id}: gerando PDF...")
-        try:
-            pdf_path = pdf_generator.gerar_pdf(
-                aula_id, titulo, texto_bruto, estruturado_pdf, flashcards
-            )
-        except Exception as e:
-            print(f"[Pipeline] PDF falhou: {e}")
-            pdf_path = None
+            print(f"[Pipeline] Aula {aula_id}: gerando PDF + Anki em paralelo...")
 
-        # ====================================================
-        # ETAPA 7: ANKI
-        # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: gerando Anki...")
-        try:
-            anki_path = anki_export.gerar_anki(aula_id, titulo, flashcards)
-        except Exception as e:
-            print(f"[Pipeline] Anki falhou: {e}")
-            anki_path = None
+            def _gerar_pdf():
+                try:
+                    path = pdf_generator.gerar_pdf(
+                        aula_id, titulo, texto_bruto, estruturado_pdf, flashcards
+                    )
+                    print(f"[Pipeline] PDF OK: {path}")
+                    return path
+                except Exception as e:
+                    print(f"[Pipeline] PDF falhou: {e}")
+                    return None
+
+            def _gerar_anki():
+                try:
+                    path = anki_export.gerar_anki(aula_id, titulo, flashcards)
+                    print(f"[Pipeline] Anki OK: {path}")
+                    return path
+                except Exception as e:
+                    print(f"[Pipeline] Anki falhou: {e}")
+                    return None
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                fut_pdf = executor.submit(_gerar_pdf)
+                fut_anki = executor.submit(_gerar_anki)
+                pdf_path = fut_pdf.result()
+                anki_path = fut_anki.result()
 
         # ====================================================
         # FINAL
@@ -185,7 +218,6 @@ def processar_aula(aula_id: int):
                        pdf_path=pdf_path, anki_path=anki_path)
         print(f"[Pipeline] Aula {aula_id}: CONCLUIDO! ({len(flashcards)} flashcards)")
 
-        # Verifica se faz parte de uma sessão e se todas as partes estão prontas
         if row["sessao_id"]:
             _verificar_sessao(conn, row["sessao_id"])
 
@@ -219,7 +251,7 @@ def processar_aula(aula_id: int):
 
 
 def _verificar_sessao(conn, sessao_id: int):
-    """Checa se todas as partes da sessão estão prontas e dispara compilação."""
+    """Checa se todas as partes da sessao estao prontas e dispara compilacao."""
     sessao = conn.execute("SELECT * FROM sessoes WHERE id=?", (sessao_id,)).fetchone()
     if not sessao or sessao["status"] not in ("processando", "aguardando"):
         return
