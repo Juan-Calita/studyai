@@ -1,4 +1,4 @@
-"""Transcricao: so compacta se arquivo > 90MB. Caso contrario sobe original direto."""
+"""Transcricao: compacta se arquivo > 24MB (limite Whisper = 25MB). Caso contrario sobe original."""
 import os
 import shutil
 import subprocess
@@ -8,50 +8,19 @@ import time
 from pathlib import Path
 from typing import Optional
 
-import google.generativeai as genai
+from openai import OpenAI
 from app.config import settings
 
-genai.configure(api_key=settings.gemini_api_key)
+_client = OpenAI(api_key=settings.openai_api_key)
 
-MODEL_NAME = "gemini-flash-latest"
-TIMEOUT_GEMINI = 300              # 5 min para Gemini transcrever
-TIMEOUT_UPLOAD = 180              # 3 min para upload terminar de processar
+TIMEOUT_WHISPER = 300             # 5 min para Whisper transcrever
 TIMEOUT_COMPRESSAO = 90           # 90s no MAX para compactar
-SKIP_COMPRESSION_BELOW_MB = 90.0  # SO compacta se passar de 90MB
+SKIP_COMPRESSION_BELOW_MB = 24.0  # Whisper aceita ate 25MB
 SPEED_FACTOR = 1.4                # equilibrio: ganho real sem perder termos medicos
 
 
 # ============================================================
-# UPLOAD GEMINI COM POLLING DE ESTADO
-# ============================================================
-
-def _aguardar_upload_pronto(audio_file, timeout=TIMEOUT_UPLOAD):
-    """Espera o Gemini terminar de processar o upload."""
-    start = time.time()
-    last_log = 0
-    while audio_file.state.name == "PROCESSING":
-        elapsed = time.time() - start
-        if elapsed > timeout:
-            raise RuntimeError(
-                f"Upload travou em PROCESSING apos {timeout}s. Tente arquivo menor."
-            )
-        if int(elapsed) - last_log >= 5:
-            print(f"[Transcricao] Aguardando Gemini processar upload... ({int(elapsed)}s)")
-            last_log = int(elapsed)
-        time.sleep(2)
-        audio_file = genai.get_file(audio_file.name)
-
-    if audio_file.state.name == "FAILED":
-        raise RuntimeError(f"Upload falhou no Gemini. Estado: {audio_file.state.name}")
-
-    if audio_file.state.name != "ACTIVE":
-        raise RuntimeError(f"Estado inesperado do upload: {audio_file.state.name}")
-
-    return audio_file
-
-
-# ============================================================
-# COMPACTACAO COM FFMPEG (so para arquivos > 90MB)
+# COMPACTACAO COM FFMPEG (so para arquivos > 24MB)
 # ============================================================
 
 def _achar_ffmpeg() -> Optional[str]:
@@ -66,8 +35,7 @@ def _achar_ffmpeg() -> Optional[str]:
 
 def _compactar_audio_simples(ffmpeg_exe: str, input_path: str,
                               output_dir: Path) -> Optional[str]:
-    """Compactacao simples e rapida: speed 1.4x + Opus 24kbps mono.
-    SEM silenceremove (que e o filtro lento)."""
+    """Compactacao simples e rapida: speed 1.4x + Opus 24kbps mono."""
     output_path = str(output_dir / "compressed.opus")
 
     cmd = [
@@ -104,7 +72,6 @@ def _compactar_audio_simples(ffmpeg_exe: str, input_path: str,
 # ============================================================
 
 class _CompactResult:
-    """Resultado compartilhado entre thread de compactacao e main."""
     def __init__(self):
         self.done = False
         self.path = None
@@ -129,7 +96,7 @@ def _compactar_em_thread(ffmpeg_exe: str, input_path: str, output_dir: Path,
 # ============================================================
 
 def transcrever(audio_path: str) -> str:
-    """Transcreve audio. So tenta compactar se passar de 90MB."""
+    """Transcreve audio via Whisper (OpenAI). Compacta se > 24MB."""
     t_total = time.time()
     size_mb_original = os.path.getsize(audio_path) / 1024 / 1024
     print(f"[Transcricao] === INICIO === arquivo {size_mb_original:.1f}MB")
@@ -138,7 +105,6 @@ def transcrever(audio_path: str) -> str:
     tmpdir_obj = None
     compact_thread = None
     compact_result = None
-    audio_file = None
 
     try:
         # === ETAPA 1: Decide se vale tentar compactar ===
@@ -184,37 +150,22 @@ def transcrever(audio_path: str) -> str:
                     print(f"[Transcricao] Compactacao falhou em {compact_result.elapsed:.1f}s, "
                           f"usando original")
 
-        # === ETAPA 4: Upload ao Gemini ===
+        # === ETAPA 4: Transcricao via Whisper ===
         upload_size_mb = os.path.getsize(audio_para_enviar) / 1024 / 1024
-        print(f"[Transcricao] Fazendo upload de {upload_size_mb:.1f}MB ao Gemini...")
-        t_up = time.time()
-        audio_file = genai.upload_file(path=audio_para_enviar)
-        print(f"[Transcricao] Upload enviado em {time.time()-t_up:.1f}s, "
-              f"estado inicial: {audio_file.state.name}")
-
-        # === ETAPA 5: Aguarda processamento do upload ===
-        audio_file = _aguardar_upload_pronto(audio_file)
-        print(f"[Transcricao] Upload pronto (ACTIVE) em {time.time()-t_up:.1f}s total")
-
-        # === ETAPA 6: Transcricao ===
-        print(f"[Transcricao] Iniciando transcricao (timeout {TIMEOUT_GEMINI}s)...")
+        print(f"[Transcricao] Enviando {upload_size_mb:.1f}MB ao Whisper...")
         t_tr = time.time()
-        model = genai.GenerativeModel(MODEL_NAME)
-        response = model.generate_content(
-            [
-                "Transcreva este audio completamente em portugues brasileiro. "
-                "Retorne APENAS o texto transcrito, palavra por palavra, sem comentarios, "
-                "sem timestamps, sem formatacao extra. Use [inaudivel] para trechos "
-                "incompreensiveis. Mantenha termos tecnicos e medicos exatamente como "
-                "foram pronunciados.",
-                audio_file,
-            ],
-            request_options={"timeout": TIMEOUT_GEMINI},
-            generation_config={
-                "temperature": 0.1,
-                "max_output_tokens": 32000,
-            },
-        )
+
+        with open(audio_para_enviar, "rb") as f:
+            response = _client.audio.transcriptions.create(
+                model="whisper-1",
+                file=f,
+                language="pt",
+                prompt=(
+                    "Transcreva este audio completamente em portugues brasileiro. "
+                    "Use [inaudivel] para trechos incompreensiveis. "
+                    "Mantenha termos tecnicos e medicos exatamente como pronunciados."
+                ),
+            )
 
         text = (response.text or "").strip()
         print(f"[Transcricao] Resposta em {time.time()-t_tr:.1f}s, "
@@ -234,13 +185,6 @@ def transcrever(audio_path: str) -> str:
         raise
 
     finally:
-        # Limpa arquivo do Gemini
-        if audio_file is not None:
-            try:
-                genai.delete_file(audio_file.name)
-            except Exception:
-                pass
-        # Limpa pasta temporaria
         if tmpdir_obj is not None:
             try:
                 tmpdir_obj.cleanup()

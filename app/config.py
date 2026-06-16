@@ -5,6 +5,7 @@ import os
 
 class Settings(BaseSettings):
     gemini_api_key: str = ""
+    openai_api_key: str = ""
     port: int = int(os.environ.get("PORT", 8000))
 
     data_dir: Path = Path("./data")
