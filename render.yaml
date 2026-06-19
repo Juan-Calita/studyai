@@ -4,6 +4,10 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    disk:
+      name: studyai-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
     envVars:
       - key: GEMINI_API_KEY
         sync: false
