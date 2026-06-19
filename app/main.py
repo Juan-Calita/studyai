@@ -81,13 +81,14 @@ def _recuperar_aulas_travadas():
 
 
 def _agendar_limpeza_audios():
-    """Agenda limpeza periodica de arquivos de audio antigos (> 7 dias)."""
+    """Agenda limpeza periodica de arquivos antigos."""
     import time
 
     def _loop():
         while True:
-            time.sleep(6 * 3600)  # roda a cada 6 horas
+            time.sleep(6 * 3600)
             _limpar_audios_antigos()
+            _limpar_pdfs_anki_antigos()
 
     t = threading.Thread(target=_loop, daemon=True)
     t.start()
@@ -114,9 +115,62 @@ def _limpar_audios_antigos():
             conn.execute("UPDATE aulas SET audio_path=NULL WHERE id=?", (row["id"],))
         conn.commit()
         if removidos:
-            print(f"[Limpeza] {removidos} arquivo(s) de audio removido(s)")
+            print(f"[Limpeza] {removidos} audio(s) removido(s)")
     finally:
         conn.close()
+
+
+def _limpar_pdfs_anki_antigos():
+    """Apaga PDFs e Anki com mais de 30 dias para liberar espaço no disco."""
+    conn = get_conn()
+    try:
+        antigas = conn.execute(
+            """SELECT id, pdf_path, anki_path FROM aulas
+               WHERE criado_em < datetime('now', '-30 days')
+               AND (pdf_path IS NOT NULL OR anki_path IS NOT NULL)"""
+        ).fetchall()
+        removidos = 0
+        for row in antigas:
+            for col, field in (("pdf_path", row["pdf_path"]), ("anki_path", row["anki_path"])):
+                if field:
+                    p = Path(field)
+                    if p.exists():
+                        try:
+                            p.unlink()
+                            removidos += 1
+                        except Exception as e:
+                            print(f"[Limpeza] Erro ao remover {p}: {e}")
+            conn.execute(
+                "UPDATE aulas SET pdf_path=NULL, anki_path=NULL WHERE id=?", (row["id"],)
+            )
+        conn.commit()
+        # Faz o mesmo para sessoes
+        antigas_s = conn.execute(
+            """SELECT id, pdf_path, anki_path FROM sessoes
+               WHERE criado_em < datetime('now', '-30 days')
+               AND (pdf_path IS NOT NULL OR anki_path IS NOT NULL)"""
+        ).fetchall()
+        for row in antigas_s:
+            for field in (row["pdf_path"], row["anki_path"]):
+                if field:
+                    p = Path(field)
+                    if p.exists():
+                        try:
+                            p.unlink()
+                            removidos += 1
+                        except Exception:
+                            pass
+            conn.execute(
+                "UPDATE sessoes SET pdf_path=NULL, anki_path=NULL WHERE id=?", (row["id"],)
+            )
+        conn.commit()
+        if removidos:
+            print(f"[Limpeza] {removidos} PDF/Anki antigo(s) removido(s)")
+    finally:
+        conn.close()
+
+
+MAX_UPLOAD_MB = 500
 
 
 @app.post("/api/aulas")
@@ -129,10 +183,17 @@ async def upload_aula(
     ext = Path(audio.filename).suffix or ".mp3"
     audio_path = str(settings.upload_dir / f"{uuid.uuid4().hex}{ext}")
 
-    # Salva arquivo e calcula hash SHA256 em uma passagem
+    # Salva arquivo, calcula hash SHA256 e valida tamanho em uma passagem
     hasher = hashlib.sha256()
+    total_bytes = 0
+    max_bytes = MAX_UPLOAD_MB * 1024 * 1024
     with open(audio_path, "wb") as f:
         for chunk in iter(lambda: audio.file.read(65536), b""):
+            total_bytes += len(chunk)
+            if total_bytes > max_bytes:
+                f.close()
+                Path(audio_path).unlink(missing_ok=True)
+                raise HTTPException(413, detail=f"Arquivo muito grande. Limite: {MAX_UPLOAD_MB}MB")
             hasher.update(chunk)
             f.write(chunk)
     audio_hash = hasher.hexdigest()
@@ -255,6 +316,40 @@ def download_sessao_anki(sessao_id: int):
         raise HTTPException(404)
     filename = _safe_filename(row["titulo"], "apkg")
     return _force_download_response(row["anki_path"], filename, "application/octet-stream")
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/api/aulas")
+def listar_aulas(limit: int = 20, offset: int = 0):
+    """Lista aulas recentes, excluindo partes de sessao."""
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT id, titulo, status, progresso, criado_em, erro,
+                  pdf_path, anki_path, sessao_id
+           FROM aulas
+           WHERE sessao_id IS NULL
+           ORDER BY id DESC
+           LIMIT ? OFFSET ?""",
+        (limit, offset),
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "id": r["id"],
+            "titulo": r["titulo"],
+            "status": r["status"],
+            "progresso": r["progresso"] or 0,
+            "criado_em": r["criado_em"],
+            "erro": r["erro"],
+            "pdf_url": f"/api/aulas/{r['id']}/pdf" if r["pdf_path"] else None,
+            "anki_url": f"/api/aulas/{r['id']}/anki" if r["anki_path"] else None,
+        }
+        for r in rows
+    ]
 
 
 @app.get("/api/aulas/{aula_id}")
