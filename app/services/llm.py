@@ -120,7 +120,7 @@ _MAX_GUIA_CHARS   = 12000
 _MAX_PALACE_CHARS = 14000
 
 def gerar_resumo(transcricao_bruta: str) -> dict:
-    """Gera titulo + resumo expandido. Transcricao limpa e gerada separadamente."""
+    """Gera titulo + resumo expandido."""
     trecho = transcricao_bruta[:_MAX_RESUMO_CHARS]
     cortado = len(transcricao_bruta) > _MAX_RESUMO_CHARS
 
@@ -145,7 +145,6 @@ Transcricao:
     resp = _call_with_retry(prompt, max_tokens=4096, timeout=120)
     data = _parse_json(resp.text)
 
-    # Garante que os campos existam
     if not isinstance(data, dict):
         data = {}
     if not data.get("titulo_sugerido"):
@@ -153,44 +152,7 @@ Transcricao:
     if not data.get("resumo_expandido"):
         data["resumo_expandido"] = ""
 
-    # Gera transcricao estruturada separadamente (chamada menor, mais confiavel)
-    try:
-        data["transcricao_destrinchada"] = _gerar_transcricao_estruturada(transcricao_bruta)
-    except Exception as e:
-        print(f"[LLM] Transcricao estruturada falhou: {e}, usando bruta")
-        data["transcricao_destrinchada"] = transcricao_bruta
-
     return data
-
-
-def _gerar_transcricao_estruturada(transcricao_bruta: str) -> str:
-    """Reescreve a transcricao em markdown limpo, em chunks se necessario."""
-    CHUNK = 20000
-    if len(transcricao_bruta) <= CHUNK:
-        return _estruturar_chunk(transcricao_bruta)
-
-    # Para transcricoes longas, processa em chunks e concatena
-    chunks = [transcricao_bruta[i:i+CHUNK] for i in range(0, len(transcricao_bruta), CHUNK)]
-    partes = []
-    for i, chunk in enumerate(chunks, 1):
-        try:
-            partes.append(f"## Parte {i}\n\n" + _estruturar_chunk(chunk))
-        except Exception as e:
-            print(f"[LLM] Chunk {i} falhou: {e}, usando bruto")
-            partes.append(f"## Parte {i}\n\n" + chunk)
-    return "\n\n".join(partes)
-
-
-def _estruturar_chunk(texto: str) -> str:
-    prompt = f"""Reescreva o texto abaixo em markdown limpo e organizado.
-Mantenha 100% do conteudo tecnico. Organize com paragrafos claros.
-Use # ## ### para estruturar. Remova muletas de fala (ne, tipo, assim, entao).
-Retorne APENAS o markdown, sem JSON, sem explicacoes.
-
-Texto:
-{texto}"""
-    resp = _call_with_retry(prompt, max_tokens=4096, timeout=90)
-    return (resp.text or texto).strip()
 
 
 # ============================================================
@@ -269,18 +231,17 @@ Transcricao da aula:
 # ============================================================
 
 def gerar_flashcards(transcricao_bruta: str) -> list:
-    """Gera flashcards adaptativos: 30+ cards, escala com duracao da aula."""
-    # Estima duracao pelo tamanho da transcricao
+    """Gera flashcards adaptativos: escala com duracao da aula."""
     chars = len(transcricao_bruta)
     if chars < 8000:
-        n_cards = 30
-        max_tokens = 6000
+        n_cards = 15
+        max_tokens = 3000
     elif chars < 18000:
-        n_cards = 40
-        max_tokens = 8000
+        n_cards = 20
+        max_tokens = 4000
     else:
-        n_cards = 50
-        max_tokens = 10000
+        n_cards = 25
+        max_tokens = 5000
 
     # Limita entrada para nao explodir o contexto de saida
     MAX_INPUT = 25000

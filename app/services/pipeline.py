@@ -76,20 +76,18 @@ def processar_aula(aula_id: int, cached_aula_id: int = None):
         _update_status(conn, aula_id, status="gerando_resumo", progresso=45)
         titulo = row["titulo"]
         resumo = ""
-        transcricao_estruturada = texto_bruto
 
         try:
             resumo_data = llm.gerar_resumo(texto_bruto)
             titulo = resumo_data.get('titulo_sugerido') or row["titulo"]
             resumo = resumo_data.get('resumo_expandido', '')
-            transcricao_estruturada = resumo_data.get('transcricao_destrinchada', texto_bruto)
             print(f"[Pipeline] Resumo OK ({len(resumo)} chars)")
         except Exception as e:
             print(f"[Pipeline] Resumo falhou: {e}")
             resumo = "Nao foi possivel gerar resumo expandido."
 
         _update_status(conn, aula_id, titulo=titulo, resumo=resumo,
-                       transcricao=transcricao_estruturada, progresso=60)
+                       transcricao=texto_bruto, progresso=60)
 
         # ====================================================
         # ETAPA 3: FLASHCARDS (sempre necessario)
@@ -97,11 +95,10 @@ def processar_aula(aula_id: int, cached_aula_id: int = None):
         # Para aulas normais: palacio + flashcards + guia em paralelo
         # ====================================================
         flashcards = []
-        palacio = ""
         guia = ""
 
         if is_parte_sessao:
-            # Partes de sessao: apenas flashcards (palacio/guia/pdf/anki serao feitos na compilacao)
+            # Partes de sessao: apenas flashcards (guia/pdf/anki serao feitos na compilacao)
             print(f"[Pipeline] Aula {aula_id}: parte de sessao - apenas flashcards...")
             _update_status(conn, aula_id, status="gerando_flashcards", progresso=65)
             try:
@@ -112,18 +109,9 @@ def processar_aula(aula_id: int, cached_aula_id: int = None):
                 print(f"[Pipeline] Flashcards falharam: {e}")
 
         else:
-            # Aulas normais: palacio + flashcards + guia em paralelo
-            print(f"[Pipeline] Aula {aula_id}: gerando palacio + flashcards + guia em paralelo...")
+            # Aulas normais: flashcards + guia em paralelo
+            print(f"[Pipeline] Aula {aula_id}: gerando flashcards + guia em paralelo...")
             _update_status(conn, aula_id, status="gerando_conteudo", progresso=65)
-
-            def _gerar_palacio():
-                try:
-                    result = llm.gerar_palacio_mental(texto_bruto, titulo)
-                    print(f"[Pipeline] Palacio OK ({len(result)} chars)")
-                    return result
-                except Exception as e:
-                    print(f"[Pipeline] Palacio falhou: {e}")
-                    return ""
 
             def _gerar_flashcards_task():
                 try:
@@ -144,11 +132,9 @@ def processar_aula(aula_id: int, cached_aula_id: int = None):
                     print(f"[Pipeline] Guia falhou: {e}")
                     return ""
 
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                fut_palacio = executor.submit(_gerar_palacio)
+            with ThreadPoolExecutor(max_workers=2) as executor:
                 fut_flashcards = executor.submit(_gerar_flashcards_task)
                 fut_guia = executor.submit(_gerar_guia)
-                palacio = fut_palacio.result()
                 flashcards = fut_flashcards.result()
                 guia = fut_guia.result()
 
@@ -190,8 +176,7 @@ def processar_aula(aula_id: int, cached_aula_id: int = None):
             estruturado_pdf = {
                 'guia_de_estudos': guia,
                 'resumo_expandido': resumo,
-                'palacio_mental': palacio,
-                'transcricao_estruturada': transcricao_estruturada,
+                'palacio_mental': '',
             }
 
             print(f"[Pipeline] Aula {aula_id}: gerando PDF + Anki em paralelo...")
