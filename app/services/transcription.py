@@ -13,7 +13,7 @@ from app.config import settings
 
 genai.configure(api_key=settings.gemini_api_key)
 
-MODEL_NAME = "gemini-flash-latest"
+MODEL_NAME = "gemini-2.5-pro"
 TIMEOUT_GEMINI = 300              # 5 min para Gemini transcrever
 TIMEOUT_UPLOAD = 180              # 3 min para upload terminar de processar
 TIMEOUT_COMPRESSAO = 90           # 90s no MAX para compactar
