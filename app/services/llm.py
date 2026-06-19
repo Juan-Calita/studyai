@@ -7,7 +7,7 @@ from google.api_core import exceptions
 from app.config import settings
 
 genai.configure(api_key=settings.gemini_api_key)
-_model = genai.GenerativeModel("gemini-flash-latest")
+_model = genai.GenerativeModel("gemini-2.0-flash")
 
 
 # ============================================================
@@ -81,28 +81,33 @@ def _extrair_cards_robustamente(texto: str) -> list:
     return cards
 
 
-def _call_with_retry(prompt, retries=2, max_tokens=None):
+def _call_with_retry(prompt, retries=3, max_tokens=None, timeout=180):
     last_err = None
-    config = {}
-    if max_tokens:
-        config['max_output_tokens'] = max_tokens
+    config = {"max_output_tokens": max_tokens} if max_tokens else {}
     for attempt in range(retries + 1):
         try:
-            if config:
-                return _model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(**config)
-                )
-            return _model.generate_content(prompt)
+            return _model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(**config) if config else None,
+                request_options={"timeout": timeout},
+            )
         except exceptions.ResourceExhausted as e:
             last_err = e
+            wait = min(20 * (attempt + 1), 60)
             if attempt < retries:
-                print(f"[LLM] Quota exhausted, aguardando 40s...")
-                time.sleep(40)
+                print(f"[LLM] Quota exhausted (tentativa {attempt+1}), aguardando {wait}s...")
+                time.sleep(wait)
+        except exceptions.DeadlineExceeded as e:
+            last_err = e
+            if attempt < retries:
+                print(f"[LLM] Timeout na tentativa {attempt+1}, retentando...")
+                time.sleep(5)
         except Exception as e:
             last_err = e
             if attempt < retries:
-                time.sleep(5 * (attempt + 1))
+                wait = 5 * (attempt + 1)
+                print(f"[LLM] Erro tentativa {attempt+1}: {type(e).__name__}, aguardando {wait}s...")
+                time.sleep(wait)
     raise last_err
 
 
@@ -110,30 +115,82 @@ def _call_with_retry(prompt, retries=2, max_tokens=None):
 # BLOCO 1: RESUMO + TITULO + TRANSCRICAO ESTRUTURADA
 # ============================================================
 
+_MAX_RESUMO_CHARS = 30000   # ~7500 tokens de entrada
+_MAX_GUIA_CHARS   = 12000
+_MAX_PALACE_CHARS = 14000
+
 def gerar_resumo(transcricao_bruta: str) -> dict:
-    """Gera titulo + resumo expandido + transcricao limpa."""
-    prompt = f"""Voce e um assistente pedagogico. Analise a transcricao da aula abaixo e gere JSON com 3 campos:
+    """Gera titulo + resumo expandido. Transcricao limpa e gerada separadamente."""
+    trecho = transcricao_bruta[:_MAX_RESUMO_CHARS]
+    cortado = len(transcricao_bruta) > _MAX_RESUMO_CHARS
 
-1. **titulo_sugerido**: titulo academico curto e objetivo (max 80 chars).
+    prompt = f"""Voce e um assistente pedagogico especializado. Analise a transcricao da aula abaixo.
 
-2. **resumo_expandido**: resumo didatico e detalhado em ~1500 palavras. Use markdown com ## (subsecoes) e ### (detalhes). Cubra TODOS os pontos importantes da aula.
+{"ATENCAO: a transcricao foi cortada nos primeiros " + str(_MAX_RESUMO_CHARS) + " caracteres por ser muito longa." if cortado else ""}
 
-3. **transcricao_destrinchada**: 100% do conteudo tecnico reescrito sem muletas, em markdown (# ## ###). Sem caracteres ornamentais (* - @ $).
+Gere um JSON com EXATAMENTE 2 campos:
 
-Responda APENAS com JSON valido:
+1. "titulo_sugerido": titulo academico objetivo (max 80 chars, sem aspas duplas).
+2. "resumo_expandido": resumo didatico detalhado em ~1500 palavras em markdown. Use ## para subsecoes e ### para detalhes. Cubra TODOS os topicos importantes em ordem. Use apenas aspas simples dentro do texto.
+
+JSON de saida (comece com {{ e termine com }}, nada antes nem depois):
 {{
-  "titulo_sugerido": "...",
-  "resumo_expandido": "...",
-  "transcricao_destrinchada": "..."
+  "titulo_sugerido": "titulo aqui",
+  "resumo_expandido": "resumo completo aqui em markdown"
 }}
 
-Use \\n para quebras de linha. Nao use aspas duplas dentro do conteudo (use aspas simples).
-
 Transcricao:
-{transcricao_bruta}"""
+{trecho}"""
 
-    resp = _call_with_retry(prompt)
-    return _parse_json(resp.text)
+    resp = _call_with_retry(prompt, max_tokens=4096, timeout=120)
+    data = _parse_json(resp.text)
+
+    # Garante que os campos existam
+    if not isinstance(data, dict):
+        data = {}
+    if not data.get("titulo_sugerido"):
+        data["titulo_sugerido"] = ""
+    if not data.get("resumo_expandido"):
+        data["resumo_expandido"] = ""
+
+    # Gera transcricao estruturada separadamente (chamada menor, mais confiavel)
+    try:
+        data["transcricao_destrinchada"] = _gerar_transcricao_estruturada(transcricao_bruta)
+    except Exception as e:
+        print(f"[LLM] Transcricao estruturada falhou: {e}, usando bruta")
+        data["transcricao_destrinchada"] = transcricao_bruta
+
+    return data
+
+
+def _gerar_transcricao_estruturada(transcricao_bruta: str) -> str:
+    """Reescreve a transcricao em markdown limpo, em chunks se necessario."""
+    CHUNK = 20000
+    if len(transcricao_bruta) <= CHUNK:
+        return _estruturar_chunk(transcricao_bruta)
+
+    # Para transcricoes longas, processa em chunks e concatena
+    chunks = [transcricao_bruta[i:i+CHUNK] for i in range(0, len(transcricao_bruta), CHUNK)]
+    partes = []
+    for i, chunk in enumerate(chunks, 1):
+        try:
+            partes.append(f"## Parte {i}\n\n" + _estruturar_chunk(chunk))
+        except Exception as e:
+            print(f"[LLM] Chunk {i} falhou: {e}, usando bruto")
+            partes.append(f"## Parte {i}\n\n" + chunk)
+    return "\n\n".join(partes)
+
+
+def _estruturar_chunk(texto: str) -> str:
+    prompt = f"""Reescreva o texto abaixo em markdown limpo e organizado.
+Mantenha 100% do conteudo tecnico. Organize com paragrafos claros.
+Use # ## ### para estruturar. Remova muletas de fala (ne, tipo, assim, entao).
+Retorne APENAS o markdown, sem JSON, sem explicacoes.
+
+Texto:
+{texto}"""
+    resp = _call_with_retry(prompt, max_tokens=4096, timeout=90)
+    return (resp.text or texto).strip()
 
 
 # ============================================================
@@ -201,9 +258,9 @@ ESTRUTURA OBRIGATORIA (markdown puro, ~800 palavras):
 Retorne APENAS o markdown puro (sem JSON, sem aspas envolvendo).
 
 Transcricao da aula:
-{transcricao_bruta[:10000]}"""
+{transcricao_bruta[:_MAX_PALACE_CHARS]}"""
 
-    resp = _call_with_retry(prompt)
+    resp = _call_with_retry(prompt, max_tokens=3000, timeout=120)
     return (resp.text or "").strip()
 
 
@@ -225,32 +282,33 @@ def gerar_flashcards(transcricao_bruta: str) -> list:
         n_cards = 50
         max_tokens = 10000
 
-    print(f"[Flashcards] Transcricao={chars} chars -> alvo={n_cards} cards")
+    # Limita entrada para nao explodir o contexto de saida
+    MAX_INPUT = 25000
+    trecho = transcricao_bruta[:MAX_INPUT]
+    print(f"[Flashcards] Transcricao={chars} chars (enviando {len(trecho)}) -> alvo={n_cards} cards")
 
     prompt = f"""Crie EXATAMENTE {n_cards} flashcards de estudo cobrindo TODO o conteudo da aula abaixo.
 
-REGRAS RIGOROSAS:
-- Crie {n_cards} cards (nao menos)
-- Distribua os cards igualmente por todas as secoes da aula (do inicio ao fim)
-- Perguntas claras, especificas e diretas
-- Respostas concisas (1-3 frases, max 60 palavras cada)
-- INCLUA cards sobre: definicoes exatas, valores numericos, criterios formais, doses, contraindicacoes, classificacoes, comparacoes, causas, mecanismos, sintomas, exames, tratamentos
-- Evite repetir o mesmo conceito em cards diferentes
+REGRAS:
+- Exatamente {n_cards} cards, distribuidos por todas as secoes (inicio ao fim)
+- Perguntas claras e especificas; respostas concisas (max 60 palavras)
+- Cubra: definicoes, valores numericos, criterios, doses, classificacoes, causas, mecanismos, sintomas, exames, tratamentos
+- Sem repeticoes
 
-FORMATO DE SAIDA - JSON puro, comecando com [ e terminando com ]:
+FORMATO - apenas o JSON, comecando com [ e terminando com ]:
 [{{"pergunta":"...","resposta":"..."}},{{"pergunta":"...","resposta":"..."}}]
 
-REGRAS DE FORMATACAO:
-- Use aspas duplas para chaves e valores
-- Dentro do conteudo, use aspas simples (nao duplas)
-- Nao quebre linhas dentro de strings (use \\n se precisar)
-- Nao adicione comentarios, apenas o JSON
-- Garanta que o JSON termine completo com ]
+Regras de formatacao:
+- Aspas duplas para chaves e valores
+- Dentro do conteudo, use aspas simples
+- Sem quebras de linha dentro de strings
+- Sem comentarios
+- Termine com ] fechando todos os objetos
 
 CONTEUDO DA AULA:
-{transcricao_bruta}"""
+{trecho}"""
 
-    resp = _call_with_retry(prompt, max_tokens=max_tokens)
+    resp = _call_with_retry(prompt, max_tokens=max_tokens, timeout=150)
     cards = _extrair_cards_robustamente(resp.text or "")
     print(f"[Flashcards] Extraidos: {len(cards)} cards")
 
@@ -279,7 +337,7 @@ Apenas o JSON. Sem texto antes nem depois.
 Aula:
 {transcricao_bruta[:15000]}"""
 
-    resp = _call_with_retry(prompt, max_tokens=6000)
+    resp = _call_with_retry(prompt, max_tokens=6000, timeout=120)
     return _extrair_cards_robustamente(resp.text or "")
 
 
@@ -318,7 +376,7 @@ Para CADA modulo, 1 a 5 livros/artigos confiaveis (preferir portugues).
 Retorne APENAS markdown puro.
 
 Aula:
-{transcricao_bruta[:8000]}"""
+{transcricao_bruta[:_MAX_GUIA_CHARS]}"""
 
-    resp = _call_with_retry(prompt)
+    resp = _call_with_retry(prompt, max_tokens=3000, timeout=120)
     return (resp.text or "").strip()
