@@ -14,6 +14,7 @@ from app.config import settings
 genai.configure(api_key=settings.gemini_api_key)
 
 MODEL_NAME = "gemini-2.5-pro"
+MODEL_FALLBACK = "gemini-2.5-flash"
 TIMEOUT_GEMINI = 300              # 5 min para Gemini transcrever
 TIMEOUT_UPLOAD = 180              # 3 min para upload terminar de processar
 TIMEOUT_COMPRESSAO = 90           # 90s no MAX para compactar
@@ -196,36 +197,42 @@ def transcrever(audio_path: str) -> str:
         audio_file = _aguardar_upload_pronto(audio_file)
         print(f"[Transcricao] Upload pronto (ACTIVE) em {time.time()-t_up:.1f}s total")
 
-        # === ETAPA 6: Transcricao ===
-        print(f"[Transcricao] Iniciando transcricao (timeout {TIMEOUT_GEMINI}s)...")
-        t_tr = time.time()
-        model = genai.GenerativeModel(MODEL_NAME)
-        response = model.generate_content(
-            [
-                "Voce e um transcritor especializado em aulas academicas em portugues brasileiro. "
-                "Transcreva COMPLETAMENTE este audio, palavra por palavra, sem omitir nada. "
-                "REGRAS OBRIGATORIAS: "
-                "1. Retorne APENAS o texto transcrito - zero comentarios, zero timestamps, zero explicacoes. "
-                "2. Use [inaudivel] para trechos incompreensiveis. "
-                "3. Preserve TODOS os termos tecnicos, medicos e cientificos exatamente como pronunciados. "
-                "4. Separe em paragrafos curtos por mudanca de topico ou raciocinio. "
-                "5. NAO resuma, NAO omita partes, transcreva absolutamente tudo. "
-                "6. Corrija apenas erros gramaticais obvios, mantenha o conteudo intacto.",
-                audio_file,
-            ],
-            request_options={"timeout": TIMEOUT_GEMINI},
-            generation_config={
-                "temperature": 0.0,
-                "max_output_tokens": 32000,
-            },
+        # === ETAPA 6: Transcricao (com fallback de modelo) ===
+        PROMPT_TRANSCRICAO = (
+            "Voce e um transcritor especializado em aulas academicas em portugues brasileiro. "
+            "Transcreva COMPLETAMENTE este audio, palavra por palavra, sem omitir nada. "
+            "REGRAS OBRIGATORIAS: "
+            "1. Retorne APENAS o texto transcrito - zero comentarios, zero timestamps, zero explicacoes. "
+            "2. Use [inaudivel] para trechos incompreensiveis. "
+            "3. Preserve TODOS os termos tecnicos, medicos e cientificos exatamente como pronunciados. "
+            "4. Separe em paragrafos curtos por mudanca de topico ou raciocinio. "
+            "5. NAO resuma, NAO omita partes, transcreva absolutamente tudo. "
+            "6. Corrija apenas erros gramaticais obvios, mantenha o conteudo intacto."
         )
+        GEN_CONFIG = {"temperature": 0.0, "max_output_tokens": 32000}
 
-        text = (response.text or "").strip()
-        print(f"[Transcricao] Resposta em {time.time()-t_tr:.1f}s, "
-              f"{len(text)} caracteres")
+        text = ""
+        for model_name in (MODEL_NAME, MODEL_FALLBACK):
+            print(f"[Transcricao] Tentando modelo {model_name} (timeout {TIMEOUT_GEMINI}s)...")
+            t_tr = time.time()
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(
+                    [PROMPT_TRANSCRICAO, audio_file],
+                    request_options={"timeout": TIMEOUT_GEMINI},
+                    generation_config=GEN_CONFIG,
+                )
+                text = (response.text or "").strip()
+                print(f"[Transcricao] {model_name} respondeu em {time.time()-t_tr:.1f}s, "
+                      f"{len(text)} chars")
+                if text and len(text) >= 30:
+                    break
+                print(f"[Transcricao] {model_name} retornou texto curto ({len(text)} chars), tentando fallback...")
+            except Exception as e:
+                print(f"[Transcricao] {model_name} falhou: {type(e).__name__}: {e}, tentando fallback...")
 
         if not text or len(text) < 30:
-            raise RuntimeError(f"Resposta vazia ou muito curta ({len(text)} chars)")
+            raise RuntimeError(f"Transcricao vazia apos todos os modelos ({len(text)} chars)")
 
         print(f"[Transcricao] === OK === total {time.time()-t_total:.1f}s, "
               f"{len(text)} caracteres")

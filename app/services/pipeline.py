@@ -27,6 +27,9 @@ def _sanitizar_flashcards(cards):
             continue
         p_limpo = str(pergunta).strip()[:500]
         r_limpo = str(resposta).strip()[:1000]
+        # Valida qualidade minima
+        if len(p_limpo) < 10 or len(r_limpo) < 15:
+            continue
         chave = p_limpo.lower()
         if chave in perguntas_vistas:
             continue

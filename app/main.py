@@ -54,6 +54,69 @@ def _force_download_response(file_path: str, filename: str, media_type: str) -> 
 @app.on_event("startup")
 def startup():
     init_db()
+    _recuperar_aulas_travadas()
+    _agendar_limpeza_audios()
+
+
+def _recuperar_aulas_travadas():
+    """Reprocessa aulas que ficaram presas em status intermediario (ex: server restart)."""
+    import time
+    conn = get_conn()
+    try:
+        travadas = conn.execute(
+            """SELECT id FROM aulas
+               WHERE status NOT IN ('pronto', 'erro')
+               AND criado_em < datetime('now', '-15 minutes')"""
+        ).fetchall()
+        for row in travadas:
+            aula_id = row["id"]
+            print(f"[Startup] Aula {aula_id} travada, reprocessando...")
+            conn.execute("UPDATE aulas SET status='processando', erro=NULL WHERE id=?", (aula_id,))
+            conn.commit()
+            t = threading.Thread(target=processar_aula, args=(aula_id,), daemon=True)
+            t.start()
+            time.sleep(2)  # evita disparar tudo ao mesmo tempo
+    finally:
+        conn.close()
+
+
+def _agendar_limpeza_audios():
+    """Agenda limpeza periodica de arquivos de audio antigos (> 7 dias)."""
+    import time
+
+    def _loop():
+        while True:
+            time.sleep(6 * 3600)  # roda a cada 6 horas
+            _limpar_audios_antigos()
+
+    t = threading.Thread(target=_loop, daemon=True)
+    t.start()
+
+
+def _limpar_audios_antigos():
+    """Apaga arquivos de audio com mais de 7 dias, mantendo transcricao no banco."""
+    conn = get_conn()
+    try:
+        antigas = conn.execute(
+            """SELECT id, audio_path FROM aulas
+               WHERE audio_path IS NOT NULL
+               AND criado_em < datetime('now', '-7 days')"""
+        ).fetchall()
+        removidos = 0
+        for row in antigas:
+            p = Path(row["audio_path"])
+            if p.exists():
+                try:
+                    p.unlink()
+                    removidos += 1
+                except Exception as e:
+                    print(f"[Limpeza] Erro ao remover {p}: {e}")
+            conn.execute("UPDATE aulas SET audio_path=NULL WHERE id=?", (row["id"],))
+        conn.commit()
+        if removidos:
+            print(f"[Limpeza] {removidos} arquivo(s) de audio removido(s)")
+    finally:
+        conn.close()
 
 
 @app.post("/api/aulas")
