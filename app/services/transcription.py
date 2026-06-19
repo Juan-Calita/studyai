@@ -202,16 +202,20 @@ def transcrever(audio_path: str) -> str:
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(
             [
-                "Transcreva este audio completamente em portugues brasileiro. "
-                "Retorne APENAS o texto transcrito, palavra por palavra, sem comentarios, "
-                "sem timestamps, sem formatacao extra. Use [inaudivel] para trechos "
-                "incompreensiveis. Mantenha termos tecnicos e medicos exatamente como "
-                "foram pronunciados.",
+                "Voce e um transcritor especializado em aulas academicas em portugues brasileiro. "
+                "Transcreva COMPLETAMENTE este audio, palavra por palavra, sem omitir nada. "
+                "REGRAS OBRIGATORIAS: "
+                "1. Retorne APENAS o texto transcrito - zero comentarios, zero timestamps, zero explicacoes. "
+                "2. Use [inaudivel] para trechos incompreensiveis. "
+                "3. Preserve TODOS os termos tecnicos, medicos e cientificos exatamente como pronunciados. "
+                "4. Separe em paragrafos curtos por mudanca de topico ou raciocinio. "
+                "5. NAO resuma, NAO omita partes, transcreva absolutamente tudo. "
+                "6. Corrija apenas erros gramaticais obvios, mantenha o conteudo intacto.",
                 audio_file,
             ],
             request_options={"timeout": TIMEOUT_GEMINI},
             generation_config={
-                "temperature": 0.1,
+                "temperature": 0.0,
                 "max_output_tokens": 32000,
             },
         )
