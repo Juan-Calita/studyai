@@ -19,7 +19,7 @@ TIMEOUT_GEMINI = 300              # 5 min para Gemini transcrever
 TIMEOUT_UPLOAD = 180              # 3 min para upload terminar de processar
 TIMEOUT_COMPRESSAO = 90           # 90s no MAX para compactar
 SKIP_COMPRESSION_BELOW_MB = 2.0   # Compacta tudo acima de 2MB
-SPEED_FACTOR = 1.4                # equilibrio: ganho real sem perder termos medicos
+SPEED_FACTOR = 1.7                # mais rapido sem perder qualidade aceitavel
 
 
 # ============================================================
@@ -135,11 +135,11 @@ def transcrever(audio_path: str) -> str:
     size_mb_original = os.path.getsize(audio_path) / 1024 / 1024
     print(f"[Transcricao] === INICIO === arquivo {size_mb_original:.1f}MB")
 
-    audio_para_enviar = audio_path
     tmpdir_obj = None
     compact_thread = None
     compact_result = None
     audio_file = None
+    upload_original_file = None
 
     try:
         # === ETAPA 1: Decide se vale tentar compactar ===
@@ -165,9 +165,18 @@ def transcrever(audio_path: str) -> str:
             )
             compact_thread.start()
 
-        # === ETAPA 3: Espera compactacao OU usa original apos timeout ===
+        # === ETAPA 3: Upload do original em paralelo com a compactacao ===
+        # Enquanto compacta, ja inicia upload do original; se compactacao terminar
+        # antes do processamento do original ficar pronto, troca para o compactado.
+        upload_original_file = None
         if compact_thread:
-            print(f"[Transcricao] Aguardando compactacao terminar...")
+            print(f"[Transcricao] Upload do original em paralelo com compactacao...")
+            t_up_orig = time.time()
+            upload_original_file = genai.upload_file(path=audio_path)
+            print(f"[Transcricao] Upload original enviado em {time.time()-t_up_orig:.1f}s, "
+                  f"estado: {upload_original_file.state.name}")
+
+            # Aguarda compactacao terminar
             compact_thread.join(timeout=TIMEOUT_COMPRESSAO + 5)
 
             if compact_result.done and compact_result.path:
@@ -176,26 +185,35 @@ def transcrever(audio_path: str) -> str:
                 print(f"[Transcricao] Compactacao OK em {compact_result.elapsed:.1f}s: "
                       f"{size_mb_original:.1f}MB -> {novo_mb:.1f}MB "
                       f"(-{reducao_pct:.0f}%)")
-                audio_para_enviar = compact_result.path
+                # Compactado disponivel: cancela original e usa compactado
+                try:
+                    genai.delete_file(upload_original_file.name)
+                    upload_original_file = None
+                except Exception:
+                    pass
+                print(f"[Transcricao] Fazendo upload do compactado...")
+                t_up = time.time()
+                audio_file = genai.upload_file(path=compact_result.path)
+                print(f"[Transcricao] Upload compactado enviado em {time.time()-t_up:.1f}s")
             else:
+                # Compactacao falhou ou timeout: usa upload do original ja em andamento
                 if not compact_result.done:
-                    print(f"[Transcricao] Compactacao ainda rodando apos timeout, "
-                          f"abandonando e usando original")
+                    print(f"[Transcricao] Compactacao timeout, usando upload do original ja em andamento")
                 else:
-                    print(f"[Transcricao] Compactacao falhou em {compact_result.elapsed:.1f}s, "
-                          f"usando original")
+                    print(f"[Transcricao] Compactacao falhou, usando upload do original ja em andamento")
+                audio_file = upload_original_file
+                upload_original_file = None
+        else:
+            # Sem compactacao: upload direto
+            print(f"[Transcricao] Fazendo upload de {size_mb_original:.1f}MB ao Gemini...")
+            t_up = time.time()
+            audio_file = genai.upload_file(path=audio_path)
+            print(f"[Transcricao] Upload enviado em {time.time()-t_up:.1f}s, "
+                  f"estado: {audio_file.state.name}")
 
-        # === ETAPA 4: Upload ao Gemini ===
-        upload_size_mb = os.path.getsize(audio_para_enviar) / 1024 / 1024
-        print(f"[Transcricao] Fazendo upload de {upload_size_mb:.1f}MB ao Gemini...")
-        t_up = time.time()
-        audio_file = genai.upload_file(path=audio_para_enviar)
-        print(f"[Transcricao] Upload enviado em {time.time()-t_up:.1f}s, "
-              f"estado inicial: {audio_file.state.name}")
-
-        # === ETAPA 5: Aguarda processamento do upload ===
+        # === ETAPA 4: Aguarda processamento do upload ===
         audio_file = _aguardar_upload_pronto(audio_file)
-        print(f"[Transcricao] Upload pronto (ACTIVE) em {time.time()-t_up:.1f}s total")
+        print(f"[Transcricao] Upload pronto (ACTIVE)")
 
         # === ETAPA 6: Transcricao (com fallback de modelo) ===
         PROMPT_TRANSCRICAO = (
@@ -245,12 +263,13 @@ def transcrever(audio_path: str) -> str:
         raise
 
     finally:
-        # Limpa arquivo do Gemini
-        if audio_file is not None:
-            try:
-                genai.delete_file(audio_file.name)
-            except Exception:
-                pass
+        # Limpa arquivos do Gemini
+        for f in (audio_file, upload_original_file):
+            if f is not None:
+                try:
+                    genai.delete_file(f.name)
+                except Exception:
+                    pass
         # Limpa pasta temporaria
         if tmpdir_obj is not None:
             try:

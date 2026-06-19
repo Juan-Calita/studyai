@@ -70,73 +70,66 @@ def processar_aula(aula_id: int, cached_aula_id: int = None):
                        resumo="Processando conteudo expandido...")
 
         # ====================================================
-        # ETAPA 2: RESUMO (sempre necessario)
+        # ETAPA 2+3: RESUMO + FLASHCARDS (+ GUIA) em paralelo
         # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: gerando resumo...")
         _update_status(conn, aula_id, status="gerando_resumo", progresso=45)
         titulo = row["titulo"]
         resumo = ""
-
-        try:
-            resumo_data = llm.gerar_resumo(texto_bruto)
-            titulo = resumo_data.get('titulo_sugerido') or row["titulo"]
-            resumo = resumo_data.get('resumo_expandido', '')
-            print(f"[Pipeline] Resumo OK ({len(resumo)} chars)")
-        except Exception as e:
-            print(f"[Pipeline] Resumo falhou: {e}")
-            resumo = "Nao foi possivel gerar resumo expandido."
-
-        _update_status(conn, aula_id, titulo=titulo, resumo=resumo,
-                       transcricao=texto_bruto, progresso=60)
-
-        # ====================================================
-        # ETAPA 3: FLASHCARDS (sempre necessario)
-        # Para partes de sessao: apenas flashcards, sem palacio/guia/pdf/anki
-        # Para aulas normais: palacio + flashcards + guia em paralelo
-        # ====================================================
         flashcards = []
         guia = ""
 
-        if is_parte_sessao:
-            # Partes de sessao: apenas flashcards (guia/pdf/anki serao feitos na compilacao)
-            print(f"[Pipeline] Aula {aula_id}: parte de sessao - apenas flashcards...")
-            _update_status(conn, aula_id, status="gerando_flashcards", progresso=65)
+        def _gerar_resumo_task():
+            try:
+                data = llm.gerar_resumo(texto_bruto)
+                print(f"[Pipeline] Resumo OK ({len(data.get('resumo_expandido',''))} chars)")
+                return data
+            except Exception as e:
+                print(f"[Pipeline] Resumo falhou: {e}")
+                return {}
+
+        def _gerar_flashcards_task():
             try:
                 cards_raw = llm.gerar_flashcards(texto_bruto)
-                flashcards = _sanitizar_flashcards(cards_raw)
-                print(f"[Pipeline] Flashcards: {len(flashcards)} cards")
+                result = _sanitizar_flashcards(cards_raw)
+                print(f"[Pipeline] Flashcards: {len(result)} cards")
+                return result
             except Exception as e:
                 print(f"[Pipeline] Flashcards falharam: {e}")
+                return []
 
-        else:
-            # Aulas normais: flashcards + guia em paralelo
-            print(f"[Pipeline] Aula {aula_id}: gerando flashcards + guia em paralelo...")
-            _update_status(conn, aula_id, status="gerando_conteudo", progresso=65)
+        def _gerar_guia():
+            try:
+                result = llm.gerar_guia_completo(texto_bruto)
+                print(f"[Pipeline] Guia OK ({len(result)} chars)")
+                return result
+            except Exception as e:
+                print(f"[Pipeline] Guia falhou: {e}")
+                return ""
 
-            def _gerar_flashcards_task():
-                try:
-                    cards_raw = llm.gerar_flashcards(texto_bruto)
-                    result = _sanitizar_flashcards(cards_raw)
-                    print(f"[Pipeline] Flashcards: {len(result)} cards")
-                    return result
-                except Exception as e:
-                    print(f"[Pipeline] Flashcards falharam: {e}")
-                    return []
-
-            def _gerar_guia():
-                try:
-                    result = llm.gerar_guia_completo(texto_bruto)
-                    print(f"[Pipeline] Guia OK ({len(result)} chars)")
-                    return result
-                except Exception as e:
-                    print(f"[Pipeline] Guia falhou: {e}")
-                    return ""
-
+        if is_parte_sessao:
+            # Partes de sessao: resumo + flashcards em paralelo (sem guia)
+            print(f"[Pipeline] Aula {aula_id}: parte de sessao - resumo + flashcards em paralelo...")
             with ThreadPoolExecutor(max_workers=2) as executor:
+                fut_resumo = executor.submit(_gerar_resumo_task)
+                fut_flashcards = executor.submit(_gerar_flashcards_task)
+                resumo_data = fut_resumo.result()
+                flashcards = fut_flashcards.result()
+        else:
+            # Aulas normais: resumo + flashcards + guia em paralelo
+            print(f"[Pipeline] Aula {aula_id}: gerando resumo + flashcards + guia em paralelo...")
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                fut_resumo = executor.submit(_gerar_resumo_task)
                 fut_flashcards = executor.submit(_gerar_flashcards_task)
                 fut_guia = executor.submit(_gerar_guia)
+                resumo_data = fut_resumo.result()
                 flashcards = fut_flashcards.result()
                 guia = fut_guia.result()
+
+        titulo = resumo_data.get('titulo_sugerido') or row["titulo"]
+        resumo = resumo_data.get('resumo_expandido', '') or "Nao foi possivel gerar resumo expandido."
+
+        _update_status(conn, aula_id, titulo=titulo, resumo=resumo,
+                       transcricao=texto_bruto, progresso=85)
 
         # Retry flashcards se vieram poucos
         if len(flashcards) < 5:
