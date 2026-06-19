@@ -287,6 +287,30 @@ def get_aula(aula_id: int):
     }
 
 
+@app.post("/api/aulas/{aula_id}/reprocessar")
+def reprocessar_aula(aula_id: int):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM aulas WHERE id=?", (aula_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(404)
+    if row["status"] not in ("pronto", "erro"):
+        return {"message": "Já em processamento", "status": row["status"]}
+    if not row["audio_path"] or not Path(row["audio_path"]).exists():
+        raise HTTPException(400, detail="Arquivo de áudio não encontrado. Não é possível reprocessar.")
+    conn = get_conn()
+    conn.execute(
+        "UPDATE aulas SET status='processando', erro=NULL, resumo=NULL, progresso=0 WHERE id=?",
+        (aula_id,)
+    )
+    conn.execute("DELETE FROM flashcards WHERE aula_id=?", (aula_id,))
+    conn.commit()
+    conn.close()
+    thread = threading.Thread(target=processar_aula, args=(aula_id,), daemon=True)
+    thread.start()
+    return {"message": "Reprocessamento iniciado", "status": "processando"}
+
+
 @app.get("/api/aulas/{aula_id}/pdf")
 def download_pdf(aula_id: int):
     conn = get_conn()

@@ -546,8 +546,14 @@ body {
 .summary-block + .summary-block { margin-top: 16px; padding-top: 16px; border-top:1px solid var(--line); }
 .summary-chip-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
 .summary-chip { padding:8px 12px; border-radius:999px; background: var(--primary-soft); color: var(--primary-2); font-size:11.5px; font-weight:700; }
-.transcript-toolbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.transcript-toolbar { display:flex; justify-content:flex-start; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
 .transcript-badge { padding:8px 12px; border-radius:999px; background: rgba(121,66,249,.08); color:var(--primary); font-size:11.5px; font-weight:700; }
+.inaudivel-badge { padding:6px 11px; border-radius:999px; background: rgba(239,68,68,.10); color:#F87171; font-size:11px; font-weight:700; }
+.fc-search-wrap { margin: 10px 0 4px; }
+.fc-search-input { width:100%; box-sizing:border-box; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:#ECE7FB; font-size:13.5px; outline:none; transition:border-color .2s; }
+.fc-search-input::placeholder { color:rgba(185,178,212,.5); }
+.fc-search-input:focus { border-color:rgba(121,66,249,.5); background:rgba(121,66,249,.06); }
+.fc-no-results { padding:18px 0; color:rgba(185,178,212,.6); font-size:13px; text-align:center; }
 .transcript p { padding-left: 14px; border-left: 2px solid rgba(121,66,249,.12); }
 .panel-animated { transition: opacity .25s ease, transform .25s ease; }
 .panel-enter { opacity:0; transform: translateY(8px); }
@@ -1416,6 +1422,7 @@ body {
             <div class="transcript-toolbar">
               <div class="transcript-badge" id="transcript-badge">leitura organizada</div>
               <div class="panel-meta" id="transcript-meta">0 blocos</div>
+              <div id="inaudivel-badge" class="inaudivel-badge hidden"></div>
             </div>
             <div class="transcript" id="transcript-text"></div>
           </div>
@@ -1426,6 +1433,10 @@ body {
             <div class="sec-label">Flashcards</div>
             <div class="panel-meta" id="fc-count"></div>
           </div>
+          <div class="fc-search-wrap">
+            <input type="search" id="fc-search" class="fc-search-input" placeholder="Buscar nos flashcards..." oninput="filtrarFlashcards(this.value)" autocomplete="off">
+          </div>
+          <div id="fc-no-results" class="fc-no-results hidden">Nenhum card encontrado para essa busca.</div>
           <div class="cards-grid" id="cards-grid"></div>
         </div>
 
@@ -2010,6 +2021,14 @@ function renderResultContent() {
   retryBtn.type = 'button'; retryBtn.className = 'btn btn-light'; retryBtn.textContent = 'Nova aula';
   retryBtn.onclick = cancelProcessing;
   act.appendChild(retryBtn);
+
+  if (aulaData.id) {
+    const refazerBtn = document.createElement('button');
+    refazerBtn.type = 'button'; refazerBtn.className = 'btn btn-light'; refazerBtn.textContent = '↺ Refazer';
+    refazerBtn.title = 'Reprocessa esta aula: gera novos resumos e flashcards sem fazer upload de novo';
+    refazerBtn.onclick = () => refazerAula(aulaData.id);
+    act.appendChild(refazerBtn);
+  }
   if (!exportCount) {
     const emptyExport = document.createElement('div');
     emptyExport.className = 'export-empty';
@@ -2038,6 +2057,18 @@ function renderResultContent() {
   });
   document.getElementById('transcript-meta').textContent = paragraphCount + ' blocos estruturados';
   document.getElementById('transcript-badge').textContent = paragraphCount > 12 ? 'conteúdo extenso' : 'leitura organizada';
+
+  // Indicador de qualidade: conta [inaudivel]
+  const inaudivelCount = (aulaData.transcricao || '').toLowerCase().split('[inaudível]').length - 1 +
+                         (aulaData.transcricao || '').toLowerCase().split('[inaudivel]').length - 1;
+  const inaudivelBadge = document.getElementById('inaudivel-badge');
+  if (inaudivelCount > 0) {
+    inaudivelBadge.textContent = inaudivelCount + ' trecho' + (inaudivelCount > 1 ? 's' : '') + ' inaudível' + (inaudivelCount > 1 ? 'eis' : '');
+    inaudivelBadge.classList.remove('hidden');
+    inaudivelBadge.title = 'O áudio tinha trechos incompreensíveis. Considere melhorar a qualidade do áudio.';
+  } else {
+    inaudivelBadge.classList.add('hidden');
+  }
   const storedLesson = {
     titulo: aulaData.titulo,
     createdAt: new Date().toISOString(),
@@ -2080,6 +2111,34 @@ function renderResultContent() {
     };
     grid.appendChild(div);
   });
+}
+
+function filtrarFlashcards(query) {
+  const q = query.trim().toLowerCase();
+  const cards = document.querySelectorAll('#cards-grid .fc');
+  let visiveis = 0;
+  cards.forEach(card => {
+    const texto = card.textContent.toLowerCase();
+    const visivel = !q || texto.includes(q);
+    card.style.display = visivel ? '' : 'none';
+    if (visivel) visiveis++;
+  });
+  const noResults = document.getElementById('fc-no-results');
+  if (noResults) noResults.classList.toggle('hidden', visiveis > 0 || !q);
+}
+
+async function refazerAula(aulaId) {
+  if (!confirm('Reprocessar esta aula vai gerar novos resumos e flashcards. Continuar?')) return;
+  try {
+    const res = await fetch(API + '/api/aulas/' + aulaId + '/reprocessar', { method: 'POST' });
+    if (!res.ok) throw new Error('Erro ao iniciar reprocessamento');
+    document.getElementById('view-result').classList.add('hidden');
+    document.getElementById('view-upload').classList.add('hidden');
+    document.getElementById('view-processing').classList.remove('hidden');
+    pollStatus(aulaId);
+  } catch (e) {
+    alert('Não foi possível reprocessar: ' + e.message);
+  }
 }
 
 function showTab(name) {
