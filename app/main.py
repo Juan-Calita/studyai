@@ -1,3 +1,4 @@
+import hashlib
 import shutil
 import uuid
 import threading
@@ -64,19 +65,36 @@ async def upload_aula(
 ):
     ext = Path(audio.filename).suffix or ".mp3"
     audio_path = str(settings.upload_dir / f"{uuid.uuid4().hex}{ext}")
+
+    # Salva arquivo e calcula hash SHA256 em uma passagem
+    hasher = hashlib.sha256()
     with open(audio_path, "wb") as f:
-        shutil.copyfileobj(audio.file, f)
+        for chunk in iter(lambda: audio.file.read(65536), b""):
+            hasher.update(chunk)
+            f.write(chunk)
+    audio_hash = hasher.hexdigest()
 
     conn = get_conn()
+
+    # Cache: se ja existe transcricao para este audio, reutiliza
+    cached = conn.execute(
+        "SELECT id, transcricao, resumo FROM aulas WHERE audio_hash=? AND status='pronto' AND transcricao IS NOT NULL ORDER BY id DESC LIMIT 1",
+        (audio_hash,),
+    ).fetchone()
+
     cur = conn.execute(
-        "INSERT INTO aulas (titulo, audio_path, status, sessao_id, numero_parte) VALUES (?, ?, 'processando', ?, ?)",
-        (titulo, audio_path, sessao_id, numero_parte),
+        "INSERT INTO aulas (titulo, audio_path, status, sessao_id, numero_parte, audio_hash) VALUES (?, ?, 'processando', ?, ?, ?)",
+        (titulo, audio_path, sessao_id, numero_parte, audio_hash),
     )
     aula_id = cur.lastrowid
     conn.commit()
     conn.close()
 
-    thread = threading.Thread(target=processar_aula, args=(aula_id,), daemon=True)
+    thread = threading.Thread(
+        target=processar_aula,
+        args=(aula_id, cached["id"] if cached else None),
+        daemon=True,
+    )
     thread.start()
 
     return {"aula_id": aula_id, "status": "processando"}
@@ -193,6 +211,7 @@ def get_aula(aula_id: int):
         "id": row["id"],
         "titulo": row["titulo"],
         "status": row["status"],
+        "progresso": row["progresso"] if row["progresso"] is not None else 0,
         "erro": row["erro"],
         "resumo": row["resumo"],
         "transcricao": row["transcricao"],

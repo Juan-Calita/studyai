@@ -35,7 +35,7 @@ def _sanitizar_flashcards(cards):
     return resultado
 
 
-def processar_aula(aula_id: int):
+def processar_aula(aula_id: int, cached_aula_id: int = None):
     conn = get_conn()
     try:
         row = conn.execute("SELECT * FROM aulas WHERE id = ?", (aula_id,)).fetchone()
@@ -45,16 +45,24 @@ def processar_aula(aula_id: int):
         is_parte_sessao = bool(row["sessao_id"])
 
         # ====================================================
-        # ETAPA 1: TRANSCRICAO (obrigatoria)
+        # ETAPA 1: TRANSCRICAO (usa cache se disponivel)
         # ====================================================
-        print(f"[Pipeline] Aula {aula_id}: transcrevendo...")
-        _update_status(conn, aula_id, status="transcrevendo")
-        texto_bruto = transcription.transcrever(row["audio_path"])
+        if cached_aula_id:
+            print(f"[Pipeline] Aula {aula_id}: usando transcricao em cache da aula {cached_aula_id}")
+            cached_row = conn.execute("SELECT transcricao FROM aulas WHERE id=?", (cached_aula_id,)).fetchone()
+            texto_bruto = cached_row["transcricao"] if cached_row else None
+
+        if not cached_aula_id or not texto_bruto:
+            print(f"[Pipeline] Aula {aula_id}: transcrevendo...")
+            _update_status(conn, aula_id, status="transcrevendo", progresso=10)
+            texto_bruto = transcription.transcrever(row["audio_path"])
+        else:
+            _update_status(conn, aula_id, status="transcrevendo", progresso=40)
 
         if not texto_bruto or len(texto_bruto.strip()) < 50:
             raise RuntimeError("Transcricao vazia. Audio pode estar corrompido.")
 
-        _update_status(conn, aula_id, status="estruturando",
+        _update_status(conn, aula_id, status="estruturando", progresso=42,
                        transcricao=texto_bruto,
                        resumo="Processando conteudo expandido...")
 
@@ -62,7 +70,7 @@ def processar_aula(aula_id: int):
         # ETAPA 2: RESUMO (sempre necessario)
         # ====================================================
         print(f"[Pipeline] Aula {aula_id}: gerando resumo...")
-        _update_status(conn, aula_id, status="gerando_resumo")
+        _update_status(conn, aula_id, status="gerando_resumo", progresso=45)
         titulo = row["titulo"]
         resumo = ""
         transcricao_estruturada = texto_bruto
@@ -78,7 +86,7 @@ def processar_aula(aula_id: int):
             resumo = "Nao foi possivel gerar resumo expandido."
 
         _update_status(conn, aula_id, titulo=titulo, resumo=resumo,
-                       transcricao=transcricao_estruturada)
+                       transcricao=transcricao_estruturada, progresso=60)
 
         # ====================================================
         # ETAPA 3: FLASHCARDS (sempre necessario)
@@ -92,7 +100,7 @@ def processar_aula(aula_id: int):
         if is_parte_sessao:
             # Partes de sessao: apenas flashcards (palacio/guia/pdf/anki serao feitos na compilacao)
             print(f"[Pipeline] Aula {aula_id}: parte de sessao - apenas flashcards...")
-            _update_status(conn, aula_id, status="gerando_flashcards")
+            _update_status(conn, aula_id, status="gerando_flashcards", progresso=65)
             try:
                 cards_raw = llm.gerar_flashcards(texto_bruto)
                 flashcards = _sanitizar_flashcards(cards_raw)
@@ -103,7 +111,7 @@ def processar_aula(aula_id: int):
         else:
             # Aulas normais: palacio + flashcards + guia em paralelo
             print(f"[Pipeline] Aula {aula_id}: gerando palacio + flashcards + guia em paralelo...")
-            _update_status(conn, aula_id, status="gerando_resumo")
+            _update_status(conn, aula_id, status="gerando_conteudo", progresso=65)
 
             def _gerar_palacio():
                 try:
@@ -175,7 +183,7 @@ def processar_aula(aula_id: int):
         anki_path = None
 
         if not is_parte_sessao:
-            _update_status(conn, aula_id, status="gerando_arquivos")
+            _update_status(conn, aula_id, status="gerando_arquivos", progresso=88)
             estruturado_pdf = {
                 'guia_de_estudos': guia,
                 'resumo_expandido': resumo,
@@ -214,7 +222,7 @@ def processar_aula(aula_id: int):
         # ====================================================
         # FINAL
         # ====================================================
-        _update_status(conn, aula_id, status="pronto",
+        _update_status(conn, aula_id, status="pronto", progresso=100,
                        pdf_path=pdf_path, anki_path=anki_path)
         print(f"[Pipeline] Aula {aula_id}: CONCLUIDO! ({len(flashcards)} flashcards)")
 

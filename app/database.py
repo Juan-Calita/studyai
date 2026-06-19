@@ -70,6 +70,10 @@ def _migrate(conn):
         conn.execute("ALTER TABLE aulas ADD COLUMN sessao_id INTEGER REFERENCES sessoes(id)")
     if "numero_parte" not in existing_aulas:
         conn.execute("ALTER TABLE aulas ADD COLUMN numero_parte INTEGER DEFAULT 1")
+    if "progresso" not in existing_aulas:
+        conn.execute("ALTER TABLE aulas ADD COLUMN progresso INTEGER DEFAULT 0")
+    if "audio_hash" not in existing_aulas:
+        conn.execute("ALTER TABLE aulas ADD COLUMN audio_hash TEXT")
 
     existing_fc = {row[1] for row in conn.execute("PRAGMA table_info(flashcards)")}
     if "sessao_id" not in existing_fc:
