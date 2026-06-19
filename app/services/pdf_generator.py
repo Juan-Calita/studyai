@@ -1,27 +1,27 @@
-import collections
 import re
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.lib.colors import black, red, orange
-from reportlab.platypus import SimpleDocTemplate, Paragraph, PageBreak
+from reportlab.lib.colors import black
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from app.config import settings
+
+FONT = 'Helvetica'   # equivalente ao Arial em ReportLab
+SIZE = 12
+LEAD = 18            # espacamento entre linhas
 
 
 def _normalizar_texto(valor):
-    """Aceita string, lista ou dict e retorna sempre uma string."""
     if valor is None:
         return ""
     if isinstance(valor, str):
         return valor
     if isinstance(valor, list):
-        # Lista de strings ou dicts
         partes = []
         for item in valor:
             if isinstance(item, str):
                 partes.append(item)
             elif isinstance(item, dict):
-                # Pega o primeiro valor string do dict
                 for v in item.values():
                     if isinstance(v, str):
                         partes.append(v)
@@ -32,20 +32,12 @@ def _normalizar_texto(valor):
     if isinstance(valor, dict):
         partes = []
         for k, v in valor.items():
-            partes.append(f"## {k}\n\n{_normalizar_texto(v)}")
+            partes.append(f"{k}\n\n{_normalizar_texto(v)}")
         return "\n\n".join(partes)
     return str(valor)
 
 
-def _analisar_frequencia(transcricao_bruta: str):
-    palavras = re.findall(r'\w+', transcricao_bruta.lower())
-    stop_words = {'a', 'o', 'e', 'do', 'da', 'em', 'um', 'uma', 'que', 'com', 'no', 'na', 'para', 'os', 'as', 'de', 'se', 'por', 'mais', 'sua', 'seu', 'como', 'mas', 'foi', 'ser', 'são', 'tem', 'ter', 'ele', 'ela', 'isso', 'esse', 'essa', 'esta', 'este'}
-    contagem = collections.Counter(p for p in palavras if p not in stop_words and len(p) > 3)
-    top = [item[0] for item in contagem.most_common(20)]
-    return set(top[:5]), set(top[5:15])
-
-
-def escape(t):
+def _escape(t):
     t = str(t) if t else ""
     for char in ['*', '#', '@', '$', '_']:
         t = t.replace(char, '')
@@ -55,35 +47,44 @@ def escape(t):
 
 def gerar_pdf(aula_id, titulo, transcricao_bruta, estruturado, flashcards):
     pdf_path = str(settings.pdf_dir / f"aula_{aula_id}.pdf")
-    doc = SimpleDocTemplate(pdf_path, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm,
-                            leftMargin=2.5*cm, rightMargin=2.5*cm)
+    doc = SimpleDocTemplate(
+        pdf_path, pagesize=A4,
+        topMargin=2*cm, bottomMargin=2*cm,
+        leftMargin=2.5*cm, rightMargin=2.5*cm
+    )
 
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='Titulo', fontSize=20, textColor=black, spaceBefore=2*cm,
-                              spaceAfter=18, fontName='Times-Bold'))
-    styles.add(ParagraphStyle(name='H2_Base', fontSize=14, spaceAfter=12, spaceBefore=18,
-                              fontName='Times-BoldItalic'))
-    styles.add(ParagraphStyle(name='H3_Base', fontSize=12, spaceAfter=10, spaceBefore=12,
-                              fontName='Times-BoldItalic'))
-    styles.add(ParagraphStyle(name='Corpo', fontSize=12, leading=20, spaceAfter=16,
-                              fontName='Times-Roman'))
-    styles.add(ParagraphStyle(name='FCP', fontSize=12, textColor=black, fontName='Times-Bold',
-                              spaceAfter=6, leading=20))
-    styles.add(ParagraphStyle(name='FCR', fontSize=12, leading=20, spaceAfter=16,
-                              leftIndent=12, fontName='Times-Roman'))
+    # Um unico estilo: Helvetica 12, alinhamento esquerdo, sem bold/italic/cores
+    normal = ParagraphStyle(
+        name='Normal',
+        fontName=FONT,
+        fontSize=SIZE,
+        leading=LEAD,
+        textColor=black,
+        spaceAfter=8,
+        spaceBefore=0,
+    )
+    titulo_style = ParagraphStyle(
+        name='Titulo',
+        fontName=FONT,
+        fontSize=SIZE,
+        leading=LEAD,
+        textColor=black,
+        spaceAfter=4,
+        spaceBefore=0,
+    )
+    secao_style = ParagraphStyle(
+        name='Secao',
+        fontName=FONT,
+        fontSize=SIZE,
+        leading=LEAD,
+        textColor=black,
+        spaceAfter=4,
+        spaceBefore=12,
+    )
 
     transcricao_bruta = _normalizar_texto(transcricao_bruta)
-    muito_rep, rel_rep = _analisar_frequencia(transcricao_bruta)
 
-    def get_color(texto):
-        tl = texto.lower()
-        if any(w in tl for w in muito_rep):
-            return red
-        if any(w in tl for w in rel_rep):
-            return orange
-        return black
-
-    def add_content(content, story, force_body=False):
+    def add_text(content, story):
         content = _normalizar_texto(content)
         if not content:
             return
@@ -91,49 +92,51 @@ def gerar_pdf(aula_id, titulo, transcricao_bruta, estruturado, flashcards):
             block = block.strip()
             if not block:
                 continue
-            if force_body:
-                clean = block.replace('### ', '').replace('## ', '').replace('# ', '')
-                story.append(Paragraph(escape(clean), styles['Corpo']))
-            elif block.startswith('### '):
-                style = ParagraphStyle(name='H3d', parent=styles['H3_Base'], textColor=get_color(block))
-                story.append(Paragraph(escape(block[4:]), style))
-            elif block.startswith('## '):
-                style = ParagraphStyle(name='H2d', parent=styles['H2_Base'], textColor=get_color(block))
-                story.append(Paragraph(escape(block[3:]), style))
-            elif block.startswith('# '):
-                story.append(Paragraph(escape(block[2:]), styles['Titulo']))
-            elif block.startswith('* ') or block.startswith('- '):
-                for line in block.split('\n'):
-                    if line.strip():
-                        story.append(Paragraph(escape(f'  • {line.strip("* ").strip("- ")}'), styles['Corpo']))
-            else:
-                texto = ' '.join(l.strip() for l in block.split('\n'))
-                story.append(Paragraph(escape(texto), styles['Corpo']))
+            # Remove prefixos markdown — tudo vira texto plano
+            clean = re.sub(r'^#{1,6}\s*', '', block)
+            clean = re.sub(r'\*\*(.*?)\*\*', r'\1', clean)
+            clean = re.sub(r'\*(.*?)\*', r'\1', clean)
+            clean = re.sub(r'^[-*]\s+', '  ', clean, flags=re.MULTILINE)
+            texto = ' '.join(l.strip() for l in clean.split('\n') if l.strip())
+            if texto:
+                story.append(Paragraph(_escape(texto), normal))
 
-    story = [Paragraph(escape(titulo), styles['Titulo'])]
+    story = []
 
-    story.append(Paragraph('APRESENTAÇÃO DO TEMA E GUIA DE ESTUDOS', styles['H2_Base']))
-    add_content(estruturado.get('guia_de_estudos', ''), story)
+    # Titulo
+    story.append(Paragraph(_escape(titulo), titulo_style))
+    story.append(Spacer(1, 6))
+
+    # Guia de estudos
+    story.append(Paragraph('APRESENTACAO DO TEMA E GUIA DE ESTUDOS', secao_style))
+    add_text(estruturado.get('guia_de_estudos', ''), story)
     story.append(PageBreak())
 
-    story.append(Paragraph('RESUMO EXPANDIDO DA AULA', styles['H2_Base']))
-    add_content(estruturado.get('resumo_expandido', ''), story)
+    # Resumo
+    story.append(Paragraph('RESUMO EXPANDIDO DA AULA', secao_style))
+    add_text(estruturado.get('resumo_expandido', ''), story)
     story.append(PageBreak())
 
-    story.append(Paragraph('PALÁCIO MENTAL DA MATÉRIA', styles['H2_Base']))
-    add_content(estruturado.get('palacio_mental', ''), story, force_body=True)
-    story.append(PageBreak())
+    # Palacio mental (se houver)
+    palacio = estruturado.get('palacio_mental', '')
+    if palacio and palacio.strip():
+        story.append(Paragraph('PALACIO MENTAL DA MATERIA', secao_style))
+        add_text(palacio, story)
+        story.append(PageBreak())
 
-    story.append(Paragraph('TRANSCRIÇÃO EXATA DA AULA', styles['H2_Base']))
+    # Transcricao
+    story.append(Paragraph('TRANSCRICAO EXATA DA AULA', secao_style))
     for bloco in transcricao_bruta.split('\n\n'):
         if bloco.strip():
-            story.append(Paragraph(escape(bloco.strip()), styles['Corpo']))
+            story.append(Paragraph(_escape(bloco.strip()), normal))
     story.append(PageBreak())
 
-    story.append(Paragraph('FLASHCARDS', styles['H2_Base']))
+    # Flashcards
+    story.append(Paragraph('FLASHCARDS', secao_style))
     for i, fc in enumerate(flashcards, 1):
-        story.append(Paragraph(f'{i}. {escape(fc["pergunta"])}', styles['FCP']))
-        story.append(Paragraph(escape(fc['resposta']), styles['FCR']))
+        story.append(Paragraph(f'{i}. {_escape(fc["pergunta"])}', normal))
+        story.append(Paragraph(_escape(fc['resposta']), normal))
+        story.append(Spacer(1, 4))
 
     doc.build(story)
     return pdf_path
