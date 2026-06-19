@@ -17,7 +17,7 @@ MODEL_NAME = "gemini-2.5-pro"
 TIMEOUT_GEMINI = 300              # 5 min para Gemini transcrever
 TIMEOUT_UPLOAD = 180              # 3 min para upload terminar de processar
 TIMEOUT_COMPRESSAO = 90           # 90s no MAX para compactar
-SKIP_COMPRESSION_BELOW_MB = 90.0  # SO compacta se passar de 90MB
+SKIP_COMPRESSION_BELOW_MB = 2.0   # Compacta tudo acima de 2MB
 SPEED_FACTOR = 1.4                # equilibrio: ganho real sem perder termos medicos
 
 

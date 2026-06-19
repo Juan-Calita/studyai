@@ -1856,11 +1856,13 @@ async function handleUpload(e) {
 
 function pollStatus(id) {
   const stageMap = {
-    'processando': { stage: 0, title: 'Recebendo arquivo e validando envio...', stageName: 'Upload', badge: 'recebendo', progressBase: 12, hint: 'Seu arquivo foi recebido. Estamos garantindo uma entrada estável antes da transcrição.' },
-    'transcrevendo': { stage: 1, title: 'Transcrevendo aula e organizando o conteúdo...', stageName: 'Transcrição', badge: 'transcrevendo', progressBase: 38, hint: 'A IA está convertendo o áudio em texto com estrutura para leitura e revisão.' },
-    'estruturando': { stage: 2, title: 'Gerando resumo expandido...', stageName: 'Resumo', badge: 'resumindo', progressBase: 64, hint: 'Agora o conteúdo está sendo condensado em blocos claros e reutilizáveis.' },
-    'gerando_conteudo': { stage: 2, title: 'Montando resumo e flashcards...', stageName: 'Flashcards', badge: 'estruturando', progressBase: 78, hint: 'Estamos transformando o conteúdo em material de revisão ativa.' },
-    'gerando_arquivos': { stage: 3, title: 'Preparando arquivos para download...', stageName: 'Exportação', badge: 'finalizando', progressBase: 92, hint: 'Última etapa: preparando os arquivos e consolidando a saída final.' },
+    'processando':       { stage: 0, title: 'Recebendo arquivo e validando envio...',          stageName: 'Upload',       badge: 'recebendo',    hint: 'Seu arquivo foi recebido. Estamos garantindo uma entrada estável antes da transcrição.' },
+    'transcrevendo':     { stage: 1, title: 'Transcrevendo aula e organizando o conteúdo...',  stageName: 'Transcrição',  badge: 'transcrevendo',hint: 'A IA está convertendo o áudio em texto com estrutura para leitura e revisão.' },
+    'estruturando':      { stage: 2, title: 'Gerando resumo expandido...',                     stageName: 'Resumo',       badge: 'resumindo',    hint: 'Agora o conteúdo está sendo condensado em blocos claros e reutilizáveis.' },
+    'gerando_resumo':    { stage: 2, title: 'Gerando título e resumo da aula...',              stageName: 'Resumo',       badge: 'resumindo',    hint: 'Estruturando o conteúdo em blocos de estudo.' },
+    'gerando_conteudo':  { stage: 2, title: 'Montando flashcards e palácio mental...',         stageName: 'Flashcards',   badge: 'estruturando', hint: 'Estamos transformando o conteúdo em material de revisão ativa.' },
+    'gerando_flashcards':{ stage: 2, title: 'Criando flashcards para revisão ativa...',        stageName: 'Flashcards',   badge: 'estruturando', hint: 'Gerando perguntas e respostas para memorização eficiente.' },
+    'gerando_arquivos':  { stage: 3, title: 'Preparando arquivos para download...',            stageName: 'Exportação',   badge: 'finalizando',  hint: 'Última etapa: preparando os arquivos e consolidando a saída final.' },
   };
 
   let currentStage = 0;
@@ -1902,9 +1904,10 @@ function pollStatus(id) {
           currentStage = meta.stage;
           stageProgress = 18;
         }
+        const progresso = (data.progresso > 0) ? data.progresso : null;
         document.getElementById('proc-title').textContent = meta.title;
         renderStages(currentStage, stageProgress);
-        setProcessingState({ progress: meta.progressBase, stageName: meta.stageName, badge: meta.badge, hint: meta.hint, health: 'Estável' });
+        setProcessingState({ progress: progresso !== null ? progresso : meta.progressBase, stageName: meta.stageName, badge: meta.badge, hint: meta.hint, health: 'Estável' });
       }
 
       if (data.status === 'pronto') {
