@@ -78,21 +78,34 @@ def _achar_ffmpeg() -> Optional[str]:
 # CAMADA 1: FASTER-WHISPER LOCAL
 # ============================================================
 
+# Singleton do modelo Whisper — carregado uma vez e reutilizado
+_whisper_model = None
+_whisper_model_lock = threading.Lock()
+
+
+def _get_whisper_model():
+    global _whisper_model
+    if _whisper_model is not None:
+        return _whisper_model
+    with _whisper_model_lock:
+        if _whisper_model is None:
+            from faster_whisper import WhisperModel
+            os.makedirs(WHISPER_MODEL_DIR, exist_ok=True)
+            print(f"[Whisper] Carregando modelo '{WHISPER_MODEL}' pela primeira vez...")
+            t0 = time.time()
+            _whisper_model = WhisperModel(
+                WHISPER_MODEL,
+                device="cpu",
+                compute_type="int8",
+                download_root=WHISPER_MODEL_DIR,
+            )
+            print(f"[Whisper] Modelo pronto em {time.time()-t0:.1f}s")
+    return _whisper_model
+
+
 def _transcrever_local(audio_path: str) -> str:
     """Transcreve com faster-whisper rodando localmente (sem API externa)."""
-    from faster_whisper import WhisperModel
-
-    os.makedirs(WHISPER_MODEL_DIR, exist_ok=True)
-    print(f"[Whisper] Carregando modelo '{WHISPER_MODEL}' (cache: {WHISPER_MODEL_DIR})...")
-    t0 = time.time()
-    model = WhisperModel(
-        WHISPER_MODEL,
-        device="cpu",
-        compute_type="int8",
-        download_root=WHISPER_MODEL_DIR,
-    )
-    print(f"[Whisper] Modelo pronto em {time.time()-t0:.1f}s")
-
+    model = _get_whisper_model()
     print(f"[Whisper] Transcrevendo {audio_path}...")
     t1 = time.time()
     segments, info = model.transcribe(
@@ -104,7 +117,7 @@ def _transcrever_local(audio_path: str) -> str:
     )
     texto = " ".join(seg.text.strip() for seg in segments if seg.text.strip())
     print(f"[Whisper] OK em {time.time()-t1:.1f}s, {len(texto)} chars "
-          f"(audio detectado: {info.language}, prob={info.language_probability:.2f})")
+          f"(idioma: {info.language}, prob={info.language_probability:.2f})")
     return texto
 
 
