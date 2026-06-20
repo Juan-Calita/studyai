@@ -21,49 +21,12 @@ TIMEOUT_COMPRESSAO = 90
 SKIP_COMPRESSION_BELOW_MB = 2.0
 SPEED_FACTOR = 1.7
 
-DURATION_LOCAL_MAX_SEC = 90 * 60   # usa whisper local ate 90 min
 OPENAI_MAX_MB = 24.0               # limite da API OpenAI Whisper (25MB com margem)
-WHISPER_MODEL = "small"
-WHISPER_MODEL_DIR = str(settings.data_dir / "whisper_models")
 
 
 # ============================================================
-# UTILS: DURACAO E FFMPEG
+# UTILS: FFMPEG
 # ============================================================
-
-def _get_duration_seconds(audio_path: str) -> float:
-    """Retorna duracao em segundos via ffprobe/ffmpeg. Fallback: estimativa por tamanho."""
-    ffmpeg_exe = _achar_ffmpeg()
-    if ffmpeg_exe:
-        ffprobe = shutil.which("ffprobe") or ffmpeg_exe.replace("ffmpeg", "ffprobe")
-        try:
-            result = subprocess.run(
-                [ffprobe, "-v", "error", "-show_entries", "format=duration",
-                 "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
-                capture_output=True, text=True, timeout=15
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return float(result.stdout.strip())
-        except Exception:
-            pass
-        # Fallback: usa ffmpeg -i e parse stderr
-        try:
-            result = subprocess.run(
-                [ffmpeg_exe, "-i", audio_path],
-                capture_output=True, text=True, timeout=15
-            )
-            for line in (result.stderr or "").splitlines():
-                if "Duration:" in line:
-                    dur = line.split("Duration:")[1].split(",")[0].strip()
-                    h, m, s = dur.split(":")
-                    return int(h) * 3600 + int(m) * 60 + float(s)
-        except Exception:
-            pass
-
-    # Estimativa grosseira: 1 min de audio ~ 1MB (mp3 128kbps)
-    size_mb = os.path.getsize(audio_path) / 1024 / 1024
-    return size_mb * 60
-
 
 def _achar_ffmpeg() -> Optional[str]:
     try:
@@ -75,54 +38,7 @@ def _achar_ffmpeg() -> Optional[str]:
 
 
 # ============================================================
-# CAMADA 1: FASTER-WHISPER LOCAL
-# ============================================================
-
-# Singleton do modelo Whisper — carregado uma vez e reutilizado
-_whisper_model = None
-_whisper_model_lock = threading.Lock()
-
-
-def _get_whisper_model():
-    global _whisper_model
-    if _whisper_model is not None:
-        return _whisper_model
-    with _whisper_model_lock:
-        if _whisper_model is None:
-            from faster_whisper import WhisperModel
-            os.makedirs(WHISPER_MODEL_DIR, exist_ok=True)
-            print(f"[Whisper] Carregando modelo '{WHISPER_MODEL}' pela primeira vez...")
-            t0 = time.time()
-            _whisper_model = WhisperModel(
-                WHISPER_MODEL,
-                device="cpu",
-                compute_type="int8",
-                download_root=WHISPER_MODEL_DIR,
-            )
-            print(f"[Whisper] Modelo pronto em {time.time()-t0:.1f}s")
-    return _whisper_model
-
-
-def _transcrever_local(audio_path: str) -> str:
-    """Transcreve com faster-whisper rodando localmente (sem API externa)."""
-    model = _get_whisper_model()
-    print(f"[Whisper] Transcrevendo {audio_path}...")
-    t1 = time.time()
-    segments, info = model.transcribe(
-        audio_path,
-        language="pt",
-        beam_size=5,
-        vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500},
-    )
-    texto = " ".join(seg.text.strip() for seg in segments if seg.text.strip())
-    print(f"[Whisper] OK em {time.time()-t1:.1f}s, {len(texto)} chars "
-          f"(idioma: {info.language}, prob={info.language_probability:.2f})")
-    return texto
-
-
-# ============================================================
-# CAMADA 2: OPENAI WHISPER API
+# CAMADA 1: OPENAI WHISPER API
 # ============================================================
 
 def _comprimir_para_openai(audio_path: str, tmpdir: str) -> str:
@@ -185,7 +101,7 @@ def _transcrever_openai(audio_path: str) -> str:
 
 
 # ============================================================
-# CAMADA 3: GEMINI (FALLBACK)
+# CAMADA 2: GEMINI (FALLBACK)
 # ============================================================
 
 class _CompactResult:
@@ -341,28 +257,12 @@ def _transcrever_gemini(audio_path: str) -> str:
 # ============================================================
 
 def transcrever(audio_path: str) -> str:
-    """Transcreve audio em 3 camadas: local (<=90min) > OpenAI API (>90min) > Gemini (fallback)."""
+    """Transcreve audio: OpenAI API (pago, rápido) > Gemini (fallback)."""
     t_total = time.time()
     size_mb = os.path.getsize(audio_path) / 1024 / 1024
     print(f"[Transcricao] === INICIO === {size_mb:.1f}MB")
 
-    duration = _get_duration_seconds(audio_path)
-    print(f"[Transcricao] Duracao estimada: {duration/60:.1f} min")
-
-    # Camada 1: faster-whisper local (gratis, sem upload)
-    if duration <= DURATION_LOCAL_MAX_SEC:
-        try:
-            texto = _transcrever_local(audio_path)
-            if texto and len(texto) >= 30:
-                print(f"[Transcricao] === OK (local) === {time.time()-t_total:.1f}s total")
-                return texto
-            print(f"[Transcricao] Local retornou texto curto, tentando proximo...")
-        except ImportError:
-            print(f"[Transcricao] faster-whisper nao instalado, pulando camada local")
-        except Exception as e:
-            print(f"[Transcricao] Local falhou: {type(e).__name__}: {e}")
-
-    # Camada 2: OpenAI Whisper API (pago, rapido, qualidade alta)
+    # Camada 1: OpenAI Whisper API (pago, rapido, qualidade alta)
     if settings.openai_api_key:
         try:
             texto = _transcrever_openai(audio_path)
@@ -373,9 +273,9 @@ def transcrever(audio_path: str) -> str:
         except Exception as e:
             print(f"[Transcricao] OpenAI falhou: {type(e).__name__}: {e}")
     else:
-        print(f"[Transcricao] OPENAI_API_KEY nao configurada, pulando camada OpenAI")
+        print(f"[Transcricao] OPENAI_API_KEY nao configurada, usando Gemini")
 
-    # Camada 3: Gemini (fallback sempre disponivel)
+    # Camada 2: Gemini (fallback sempre disponivel)
     print(f"[Transcricao] Usando Gemini como fallback...")
     try:
         texto = _transcrever_gemini(audio_path)
